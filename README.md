@@ -3,9 +3,9 @@
 An evidence-gated engine for phone calls that have to get through a queue before
 they get an answer.
 
-Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 1 of 8**, core
-modules only. See [Status](#status) for exactly what exists and what does not —
-nothing below describes unwritten code.
+Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 2 of 8**, engine
+and core modules. See [Status](#status) for exactly what exists and what does
+not — nothing below describes unwritten code.
 
 ## Why
 
@@ -27,7 +27,9 @@ matter how confident the model sounded.
 
 | Module | File | What it does |
 | --- | --- | --- |
+| Queue engine | `src/engine/queue.ts` | Asks one question of many places in a single dispatch, then gates each answer separately. Preview by default. |
 | Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Four verdicts: `verified`, `asked_but_unclear`, `never_asked`, `no_transcript`. |
+| Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
 | Failure classifier | `src/core/outcome.ts` | Sorts failures into `retryable`, `deterministic`, and `reconcile`. |
 | Idempotency | `src/core/idempotency.ts` | Derives keys from the authorizing business record. Records issued keys so a replay is distinguishable from a fresh dispatch. |
@@ -81,11 +83,36 @@ does not encode the original length. It does not preserve the country code — a
 country code is one to three digits and this keeps two. A string that is not
 valid E.164 is replaced with `[redacted-phone]` rather than passed through.
 
+### Developing without credentials
+
+`src/testing/fake-calle.ts` is not a stub. It implements the CALL-E wire
+contract — `POST /v1/calls`, `GET /v1/calls/{id}`, snake_case bodies, the
+`Idempotency-Key` header — as a `fetch` function, and is handed to the genuine
+`CalleClient` through its `fetch` option. The engine talks to the real SDK;
+only the network is replaced. When credentials arrive, the fake is removed and
+the same code path runs for real.
+
+It reproduces the platform's documented failure modes so the engine is written
+against CALL-E as it behaves rather than as the happy path implies:
+
+| Scenario | Reproduces |
+| --- | --- |
+| `ivr_traversal` | A three-level menu, a hold queue, then a person. |
+| `never_asked` | A confident, schema-valid result for a question the bot skipped ([#316](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/316)). |
+| `late_dial` | Still queued past the client's patience, dials afterwards ([#283](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/283)). |
+| `stuck_in_progress` | Accepted, never reaches a terminal state ([#305](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/305)). |
+| `slow_first_speech` | Long silence before the bot speaks ([#295](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/295)). |
+| `provider_unavailable` | A bare 503 from call creation. |
+
+Replaying a used idempotency key returns `201 Created` with the existing call,
+exactly as the real API does — which is why the engine keeps its own ledger
+instead of reading a 201 as "a phone rang".
+
 ## Running it
 
 ```bash
 npm install
-npm test          # 40 tests, no network, no credentials
+npm test          # 59 tests, no network, no credentials
 npm run typecheck
 ```
 
@@ -115,16 +142,18 @@ written to any output file. See `.env.example`.
 
 ## Status
 
-Day 1 of 8. What is listed under [What exists today](#what-exists-today) is
+Day 2 of 8. What is listed under [What exists today](#what-exists-today) is
 written, typechecked, and covered by the test suite. **Not yet built:** the
-parallel queue engine, the freshness ledger, the IVR route cache, the MCP
-server, the Agent Skill packaging, the Slack plugin, and the web console. They
-are planned, not present.
+webhook receiver, the freshness ledger, the IVR route cache, the MCP server,
+the Agent Skill packaging, the Slack plugin, and the web console. They are
+planned, not present.
 
-No live call has been placed yet, so no claim is made here about how CALL-E
-behaves against a real phone menu. `fixtures/traversal-with-menu.json` is
-synthetic and labelled as such; it exercises the replay path and nothing more.
-That question is what the probe exists to answer.
+**No live call has been placed.** Every scenario in the fake transport and
+`fixtures/traversal-with-menu.json` is synthetic and labelled as such. They
+model behaviour reported in CALL-E's public issue tracker; they are not
+observations of this project's own calls, and nothing here should be read as a
+measurement of how CALL-E performs against a real phone menu. That question is
+what `src/probe/validate-traversal.ts` exists to answer, and it is unanswered.
 
 ## License
 
