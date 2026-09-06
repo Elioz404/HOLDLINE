@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.tgz
+
+# Probe output can contain unmasked transcripts from real calls. Never commit it.
+probe-output/

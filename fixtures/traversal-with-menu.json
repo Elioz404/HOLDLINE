@@ -1,0 +1,60 @@
+{
+  "_comment": "Synthetic fixture. No real call, no real number, no real person. Shape mirrors the CALL-E SDK `Call` type (see @call-e/calle dist/calls.d.ts). Used to exercise the probe's replay path and the Evidence Gate without credentials.",
+  "id": "call_fixture_traversal_menu",
+  "object": "call_task",
+  "status": "completed",
+  "task": "Reach a representative and confirm which department you have been connected to.",
+  "structuredResult": {
+    "reached_human": "yes",
+    "department_confirmed": "yes",
+    "menu_steps_taken": "pressed 2 for account services, then 1 for existing customers"
+  },
+  "summary": "Navigated a three-level menu, waited in queue, and confirmed the account services desk.",
+  "taskCompleted": true,
+  "completionConfidence": { "score": 0.88, "label": "high" },
+  "evidence": [
+    "The representative identified the line as account services.",
+    "A person answered after the queue."
+  ],
+  "metadata": { "holdline_probe": "day1-traversal" },
+  "failureCode": null,
+  "failureMessage": null,
+  "createdAt": "2026-09-06T18:02:11.000Z",
+  "completedAt": "2026-09-06T18:07:44.000Z",
+  "recipients": [
+    {
+      "id": "rcp_fixture_1",
+      "phones": ["+15550199001"],
+      "locale": "en-US",
+      "region": "US",
+      "status": "completed",
+      "structuredResult": null,
+      "summary": null,
+      "attempts": [
+        {
+          "id": "att_fixture_1",
+          "phone": "+15550199001",
+          "status": "completed",
+          "startedAt": "2026-09-06T18:02:14.000Z",
+          "completedAt": "2026-09-06T18:07:44.000Z",
+          "summary": "Menu navigated, queue held, representative reached.",
+          "providerCallId": "prov_fixture_1",
+          "failureCode": null,
+          "failureMessage": null,
+          "transcriptTurns": [
+            { "offset_seconds": 3, "speaker": "unknown", "text": "Thank you for calling. Please listen carefully as our menu options have changed." },
+            { "offset_seconds": 11, "speaker": "unknown", "text": "For billing, press 1. For account services, press 2. To speak with an operator, stay on the line." },
+            { "offset_seconds": 19, "speaker": "bot", "text": "Selecting account services." },
+            { "offset_seconds": 24, "speaker": "unknown", "text": "For new accounts press 2. For existing customers press 1." },
+            { "offset_seconds": 31, "speaker": "bot", "text": "Selecting existing customers." },
+            { "offset_seconds": 36, "speaker": "unknown", "text": "All of our representatives are currently busy. Please hold." },
+            { "offset_seconds": 214, "speaker": "user", "text": "Account services, this is Dana, how can I help you?" },
+            { "offset_seconds": 218, "speaker": "bot", "text": "Hello, I am an automated assistant calling on behalf of a customer. Am I speaking with the account services department?" },
+            { "offset_seconds": 226, "speaker": "user", "text": "Yes, this is account services." },
+            { "offset_seconds": 230, "speaker": "bot", "text": "Thank you, that is all I needed to confirm. Have a good day." }
+          ]
+        }
+      ]
+    }
+  ]
+}

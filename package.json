@@ -1,0 +1,27 @@
+{
+  "name": "holdline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An evidence-gated engine for phone calls that have to get through a queue before they get an answer.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "probe": "tsx src/probe/validate-traversal.ts"
+  },
+  "dependencies": {
+    "@call-e/calle": "^0.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
