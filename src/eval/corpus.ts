@@ -163,7 +163,7 @@ const PROSE_NON_ANSWERS: readonly string[] = [
   "No answer was provided; the call remained in the automated menu and ended before the question was addressed.",
   "The information could not be obtained. The system repeated its prompt and then disconnected.",
   "Not determined — the line asked for a keypad selection and the call ended without an answer.",
-  "[nothing established].",
+  "No answer was given before the call ended.",
 ];
 
 const PROSE_ANSWERS: Record<string, readonly string[]> = {
