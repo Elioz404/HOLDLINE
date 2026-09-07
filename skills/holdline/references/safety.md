@@ -25,6 +25,13 @@ would matter.
 was raised. It cannot confirm the phrasing meant to the listener what it meant
 to whoever wrote the task.
 
+**That a negative outcome is a verified one.** The gate credits a field when a
+question was asked about it, and a fact established by absence has no question
+behind it. A real call instructed to stay in an automated menu returned
+`reached_human: "no"` — correct, and withheld, because nothing in the call
+established it. Write probes for what somebody says, not for what fails to
+happen.
+
 ## Boundaries that are not configuration
 
 **Emergency and crisis lines are refused.** `+1911`, `+1988`, `+112` and `+999`

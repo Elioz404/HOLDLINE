@@ -291,7 +291,7 @@ export function createServer(): McpServer {
           completionConfidence: call.completionConfidence,
         });
 
-        let holdSeconds: number | null = null;
+        let callSeconds: number | null = null;
         if (args.subjectId) {
           const observation = observeRoute({
             subjectId: args.subjectId,
@@ -300,7 +300,7 @@ export function createServer(): McpServer {
           });
           if (observation) {
             routes.record(observation);
-            holdSeconds = observation.reachedHumanAtSeconds;
+            callSeconds = observation.callSeconds;
           }
           facts.record({
             subjectId: args.subjectId,
@@ -324,7 +324,7 @@ export function createServer(): McpServer {
           })),
           unsupportedFields: gate.unsupportedFields,
           reasons: gate.reasons,
-          secondsOnHold: holdSeconds,
+          secondsOnCall: callSeconds,
           note: "Fields the transcript does not support are null, whatever the model reported.",
         });
       } catch (error) {

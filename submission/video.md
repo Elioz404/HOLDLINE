@@ -146,7 +146,7 @@ simulated.
   keep it that way, including the input textarea if you zoom in.
 - The board replays the call clock at 25× and says so on screen. Do not imply
   it is real time.
-- Do not claim seconds saved as a measured result. `396 seconds absorbed` on
+- Do not claim seconds saved as a measured result. `seconds on the phone` on
   the stat strip comes from simulated transcripts. Say "this is what it would
   count" or leave the strip out of frame.
 - Do not speed the video up to fit. Cut a section instead.

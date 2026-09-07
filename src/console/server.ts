@@ -281,7 +281,7 @@ export function createConsole(options: ConsoleOptions = {}): Server {
           liveAvailable: liveEnabled(),
           ledger: facts.stats(),
           routesKnown: routes.size,
-          secondsAbsorbed: routes.totalHoldSeconds(),
+          secondsAbsorbed: routes.totalSecondsOnCall(),
           scenarios: Object.keys(SCENARIOS),
         });
         return;
@@ -380,7 +380,7 @@ export function createConsole(options: ConsoleOptions = {}): Server {
             });
             if (observation) routes.record(observation);
           }
-          const absorbed = routes.totalHoldSeconds();
+          const absorbed = routes.totalSecondsOnCall();
 
           send(res, 200, {
             outcome: "completed",
@@ -569,7 +569,7 @@ export function createConsole(options: ConsoleOptions = {}): Server {
             type: "done",
             callId: outcome.callId,
             replayed: outcome.replayed,
-            secondsAbsorbed: routes.totalHoldSeconds(),
+            secondsAbsorbed: routes.totalSecondsOnCall(),
           });
         } catch (error) {
           emit({ type: "error", error: redactError(error), classification: classifyFailure(error) });

@@ -21,8 +21,11 @@
  *   npm run probe                       plan only, prints the compiled task
  *   npm run probe -- --fixture <path>   replay a saved run, no network
  *   npm run probe -- --live             place one real call after confirmation
+ *   npm run probe -- --live --menu-only  walk a public phone tree without
+ *                                        queueing for a person
  */
 
+import { createHash } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { mkdir, writeFile } from "node:fs/promises";
 import { readFile } from "node:fs/promises";
@@ -33,6 +36,7 @@ import { CalleAPIError, CalleClient, type Call } from "@call-e/calle";
 
 import { checkPhone, maskPhone } from "../core/phone.js";
 import { regionForNumber, regionsSpeaking } from "../core/regions.js";
+import { observeRoute, soundsAutomated } from "../ledger/routes.js";
 import { redact, redactError } from "../core/redact.js";
 import { classifyFailure } from "../core/outcome.js";
 import { deriveIdempotencyKey } from "../core/idempotency.js";
@@ -82,6 +86,7 @@ const RESULT_SCHEMA = {
 interface Args {
   live: boolean;
   check: boolean;
+  menuOnly: boolean;
   locale: string | null;
   region: string | null;
   fixture: string | null;
@@ -90,12 +95,13 @@ interface Args {
 }
 
 function parseArgs(argv: readonly string[]): Args {
-  const args: Args = { live: false, check: false, locale: null, region: null, fixture: null, to: null, goal: null };
+  const args: Args = { live: false, check: false, menuOnly: false, locale: null, region: null, fixture: null, to: null, goal: null };
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
     const next = argv[i + 1];
     if (flag === "--live") args.live = true;
     else if (flag === "--check") args.check = true;
+    else if (flag === "--menu-only") args.menuOnly = true;
     else if (flag === "--fixture" && next) { args.fixture = next; i += 1; }
     else if (flag === "--to" && next) { args.to = next; i += 1; }
     else if (flag === "--goal" && next) { args.goal = next; i += 1; }
@@ -140,13 +146,17 @@ async function checkCredentials(apiKey: string): Promise<number> {
   }
 }
 
-function buildTask(goal: string): ReturnType<typeof compileTask> {
+function buildTask(goal: string, menuOnly = false): ReturnType<typeof compileTask> {
   const segments: TaskSegment[] = [
     { label: "goal", text: goal, priority: "required" },
     {
       label: "routing",
-      text: "Navigate any phone menu to reach a live representative.",
-      priority: "high",
+      text: menuOnly
+        ? "Stay in the automated menu. Never queue for a person or ask for one."
+        : "Navigate any phone menu to reach a live representative.",
+      // In menu-only mode this carries the constraint that keeps a stranger
+      // off the line, so it must not be the first thing dropped.
+      priority: menuOnly ? "required" : "high",
     },
     {
       label: "disclosure",
@@ -189,6 +199,7 @@ function report(call: Call): void {
   const turns = allTurns(call);
   const markers = menuEvidence(turns);
   const silence = firstBotOffset(turns);
+  const route = observeRoute({ subjectId: "probe", callId: call.id, turns });
 
   const gate = runEvidenceGate({
     structuredResult: call.structuredResult,
@@ -208,18 +219,37 @@ function report(call: Call): void {
   console.log(`evidence gate      ${gate.verdict}`);
   for (const reason of gate.reasons) console.log(`   · ${reason}`);
 
+  // Three separate questions, because the first version collapsed them into
+  // one and lied. It matched the word "press" anywhere in the transcript and
+  // reported traversal on a call where the recording said "press 2" and the
+  // agent pressed nothing.
+  const menuHeard = turns.some((t) => t.speaker !== "bot" && soundsAutomated(t.text));
+  const agentNavigated = turns.some(
+    (t) => t.speaker === "bot" && /selecting|pressing|choosing|entering/i.test(t.text),
+  );
+  const personAt = route?.firstNonSystemTurnAtSeconds ?? null;
+
   console.log("\n─────────────── verdict ────────────────");
   if (turns.length === 0) {
-    console.log("INCONCLUSIVE — no transcript returned. Cannot judge traversal.");
-  } else if (markers.length > 0) {
-    console.log("TRAVERSAL OBSERVED — the transcript contains phone-menu language.");
-    console.log("Proceed with the queue-navigation architecture.");
+    console.log("INCONCLUSIVE — no transcript returned. Nothing can be judged.");
   } else {
-    console.log("NO TRAVERSAL EVIDENCE — the transcript shows no phone-menu language.");
-    console.log("Either the number had no menu, or the agent did not narrate it.");
-    console.log("Re-run against a number with a known menu before deciding.");
+    console.log(`menu heard         ${menuHeard ? "yes" : "no"}`);
+    console.log(
+      `agent navigated    ${agentNavigated ? "yes" : "no — it heard a menu but worked none of it"}`,
+    );
+    console.log(
+      `person reached     ${personAt === null ? "no, or not distinguishable" : `${personAt}s`}`,
+    );
+    console.log("");
+    if (agentNavigated && personAt !== null) {
+      console.log("TRAVERSAL CONFIRMED — the agent worked a menu and reached a person.");
+    } else if (menuHeard) {
+      console.log("PARTIAL — a real menu was reached and transcribed, but this call does");
+      console.log("not show the agent navigating one. Not evidence of traversal.");
+    } else {
+      console.log("NO MENU — nothing in this call had a phone tree to traverse.");
+    }
   }
-  console.log("────────────────────────────────────────\n");
 }
 
 async function persist(call: Call, label: string): Promise<void> {
@@ -262,11 +292,16 @@ async function main(): Promise<number> {
     return checkCredentials(apiKey);
   }
 
-  const goal =
-    args.goal ??
-    "Reach a representative and confirm which department you have been connected to.";
+  // The default goal asks to reach a person, which is right when the number is
+  // yours. Against a public line it is not: it occupies someone's time to
+  // answer a question we do not actually have. `--menu-only` walks the tree,
+  // reports what it heard, and hangs up without queueing for an agent.
+  const MENU_ONLY_GOAL =
+    "Listen to the phone menu and report the options it offers.";
 
-  const compiled = buildTask(goal);
+  const goal = args.goal ?? (args.menuOnly ? MENU_ONLY_GOAL : "Reach a representative and confirm which department you have been connected to.");
+
+  const compiled = buildTask(goal, args.menuOnly);
   console.log(`compiled task (${compiled.used}/${compiled.budget} chars)`);
   console.log(`  "${compiled.task}"`);
   if (compiled.dropped.length > 0) console.log(`  dropped: ${compiled.dropped.join(", ")}`);
@@ -320,18 +355,35 @@ async function main(): Promise<number> {
     return 2;
   }
 
-  if (!(await confirmLive(check.e164))) {
-    console.log("Aborted. Nothing was dialed.");
-    return 1;
-  }
-
   const label = process.env["HOLDLINE_PROBE_LABEL"] ?? "day1-traversal";
   const client = new CalleClient({ apiKey });
+  // The probe is a test tool, so what it asks changes between runs. Deriving
+  // the key from the label alone made every run share one key: the first
+  // attempt registered that key with one request, and the next one — different
+  // number, different task — came back 409 `idempotency_conflict`.
+  //
+  // The authorizing event for a probe is "this label, this number, this task",
+  // so the digest of the number and the task becomes the sequence. Re-running
+  // the identical probe is still idempotent; changing either is a new intent.
+  // The number is hashed, never carried in the key.
+  const shape = createHash("sha256")
+    .update(`${check.e164}|${compiled.task}`, "utf8")
+    .digest("hex")
+    .slice(0, 12);
+
   const idempotencyKey = deriveIdempotencyKey({
     workflow: "probe",
     subjectId: label,
     intent: "traversal-check",
+    sequence: shape,
   });
+
+  console.log(`idempotency key    ${idempotencyKey}`);
+
+  if (!(await confirmLive(check.e164))) {
+    console.log("Aborted. Nothing was dialed.");
+    return 1;
+  }
 
   try {
     const call = await client.calls.createAndWait(

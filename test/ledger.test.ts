@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { DAY, FactLedger, HOUR, type TtlPolicy } from "../src/ledger/facts.js";
 import { RouteCache, observeRoute } from "../src/ledger/routes.js";
@@ -165,9 +167,53 @@ describe("route cache", () => {
       "Selecting account services.",
       "Selecting existing customers.",
     ]);
-    expect(observation?.reachedHumanAtSeconds).toBe(208);
+    expect(observation?.agentNavigated).toBe(true);
+    expect(observation?.firstNonSystemTurnAtSeconds).toBe(208);
     // Bot turns after the human answered are conversation, not routing.
     expect(observation?.steps).not.toContain("Hello, I am an automated assistant.");
+  });
+
+  /**
+   * The correction a real call forced. CALL-E labels the automated system
+   * `user`, never `unknown`, so identifying the other party by label reported
+   * a person answering at the greeting. Content is what separates them.
+   */
+  it("does not mistake a recording for a person just because it is labelled user", () => {
+    const real = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "fixtures", "saved-call-usps-after-hours.json"), "utf8"),
+    ) as { transcriptTurns: CallTranscriptTurn[] };
+
+    // No `unknown` speaker exists in a real transcript.
+    expect(new Set(real.transcriptTurns.map((t) => t.speaker))).toEqual(new Set(["bot", "user"]));
+
+    const observation = observeRoute({
+      subjectId: "usps",
+      callId: "call_real",
+      turns: real.transcriptTurns,
+    });
+
+    expect(observation).not.toBeNull();
+    expect(observation?.prompts.length).toBeGreaterThan(0);
+    // Nobody answered. The old rule said ten seconds.
+    expect(observation?.firstNonSystemTurnAtSeconds).toBeNull();
+    // And the agent never worked the menu, so there is no route to reuse.
+    expect(observation?.agentNavigated).toBe(false);
+  });
+
+  it("offers no hint from a call where the agent never navigated", () => {
+    const real = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "fixtures", "saved-call-usps-after-hours.json"), "utf8"),
+    ) as { transcriptTurns: CallTranscriptTurn[] };
+
+    const cache = new RouteCache();
+    cache.record(observeRoute({ subjectId: "usps", callId: "call_real", turns: real.transcriptTurns })!);
+
+    // Knowing a menu exists is not knowing the way through it.
+    expect(cache.hintFor("usps")).toBeNull();
+    // Nobody answered, and the machine was still on the telephone for minutes.
+    // That time is the measurable claim, and it does not depend on guessing
+    // whether the voice on the other end was a person.
+    expect(cache.totalSecondsOnCall()).toBeGreaterThan(60);
   });
 
   it("returns nothing when a human answers directly", () => {
@@ -199,19 +245,21 @@ describe("route cache", () => {
     expect(new RouteCache().hintFor("unseen")).toBeNull();
   });
 
-  it("totals the hold time the machine absorbed", () => {
+  it("totals the seconds the machine spent on the telephone", () => {
     const cache = new RouteCache();
     cache.record(observeRoute({ subjectId: "payer-1", callId: "call_1", turns: MENU })!);
-    // 208 seconds a person did not spend listening to hold music.
-    expect(cache.totalHoldSeconds()).toBe(208);
+    // First turn at 3s, last at 212s. Every one of those seconds is a second a
+    // person did not spend on hold — measured, not inferred.
+    expect(cache.totalSecondsOnCall()).toBe(209);
   });
 
   it("survives a transcript with no timing information", () => {
     const cache = new RouteCache();
     const untimed = MENU.map((t) => ({ ...t, offset_seconds: null }));
     cache.record(observeRoute({ subjectId: "payer-2", callId: "call_3", turns: untimed })!);
-    expect(cache.get("payer-2")?.reachedHumanAtSeconds).toBeNull();
-    expect(cache.totalHoldSeconds()).toBe(0);
+    // With no timings there is nothing to measure, and nothing is claimed.
+    expect(cache.get("payer-2")?.callSeconds).toBeNull();
+    expect(cache.totalSecondsOnCall()).toBe(0);
   });
 });
 

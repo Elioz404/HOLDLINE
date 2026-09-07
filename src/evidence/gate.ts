@@ -43,6 +43,21 @@
  * quality is the operator's job, and `test/evidence-gate.test.ts` is where the
  * failure modes are pinned down.
  *
+ * ── A limit a real call exposed ────────────────────────────────────────────
+ * The gate credits a field when a question was asked about it. It has no way
+ * to credit a fact established by *absence*.
+ *
+ * On a real call the agent was told to stay in an automated menu and never ask
+ * for a person. It came back with `reached_human: "no"` and
+ * `department_confirmed: "no"` — both correct, and both flagged, because no
+ * turn asked either question. Nothing established them; they were true because
+ * nothing happened.
+ *
+ * That is the gate behaving exactly as specified and being unhelpful anyway.
+ * Withholding a correct negative is the safe direction, but it is a real cost
+ * and worth knowing before you write probes for an outcome that is proved by
+ * what did not occur.
+ *
  * The gate never repairs a value. It reports, and it withholds.
  */
 

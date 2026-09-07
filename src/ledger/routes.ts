@@ -6,23 +6,38 @@
  * a one-off cost into a shared one — the second caller gets a task that
  * already knows where it is going.
  *
- * It also gives the product its unit of impact. `reachedHumanAtSeconds` is how
- * long the machine waited so a person did not have to, and it is measured from
- * the transcript rather than asserted.
+ * ── A correction, from a real call ─────────────────────────────────────────
+ * This module used to assume CALL-E labelled system audio as `unknown` and a
+ * person as `user`, and took the first `user` turn to mean somebody had
+ * answered. That assumption was written down as load-bearing and possibly
+ * wrong. It was wrong.
  *
- * **An assumption worth stating.** CALL-E labels transcript turns `bot`,
- * `user`, or `unknown`. This module treats `unknown` turns as system audio —
- * menus, hold announcements — and the first `user` turn as the moment a person
- * answered. That is an inference from the labels, not a documented guarantee,
- * and if CALL-E labels a human `unknown` on some route the hold figure for
- * that route will be wrong. `observeRoute` returns `null` rather than guessing
- * when there is no evidence of a menu at all.
+ * On a real call placed 2026-09-07 there was no `unknown` speaker at all —
+ * only `bot` and `user` — and the automated system was labelled `user`
+ * throughout:
+ *
+ *   [10] user: "Thank you for calling the United States Postal Service
+ *               customer care center. To hear our privacy policy, press 2."
+ *   [56] user: "You have reached us after normal business hours..."
+ *
+ * Under the old rule that call reported a person answering at ten seconds,
+ * which would have made every hold figure meaningless.
+ *
+ * So the other party is now identified by **what it says**, not by how it is
+ * labelled. A turn that talks like a recording is treated as one. Everything
+ * else is a candidate person, and when nothing qualifies the module says so
+ * with `null` rather than guessing.
+ *
+ * That is still a heuristic. It will misread a receptionist who opens with
+ * "thank you for calling", and it will believe a recording that happens to
+ * sound conversational. It is honest about being an inference, which the
+ * previous version was not.
  */
 
 import type { CallTranscriptTurn } from "../evidence/types.js";
 
 /** Phrases that identify a turn as an automated menu or queue announcement. */
-const MENU_MARKERS = [
+const MACHINE_MARKERS = [
   "press",
   "menu options",
   "please listen carefully",
@@ -30,8 +45,16 @@ const MENU_MARKERS = [
   "your call is important",
   "all of our representatives",
   "for english",
+  "para español",
   "to speak with",
   "stay on the line",
+  "thank you for calling",
+  "you have reached",
+  "after normal business hours",
+  "this call may be recorded",
+  "for quality",
+  "main menu",
+  "say ",
 ];
 
 export interface RouteObservation {
@@ -39,25 +62,59 @@ export interface RouteObservation {
   readonly callId: string;
   /** What the agent said while working through the menu, in order. */
   readonly steps: readonly string[];
-  /** What the menu said, in order. */
+  /** What the automated system said, in order. */
   readonly prompts: readonly string[];
-  /** Seconds from call start until a person spoke, when observable. */
-  readonly reachedHumanAtSeconds: number | null;
+  /**
+   * How long the agent was on the call, from first turn to last.
+   *
+   * This is the number worth reporting, and the only one here that is measured
+   * rather than inferred: every second of it is a second a person did not
+   * spend on the telephone, whether or not anyone ever picked up.
+   */
+  readonly callSeconds: number | null;
+  /**
+   * Offset of the first turn from the other party that does not read as a
+   * recording. A *candidate* person, not a confirmed one — see the note on
+   * `soundsAutomated`. Never use it as a hold measurement.
+   */
+  readonly firstNonSystemTurnAtSeconds: number | null;
+  /** Whether the agent itself did anything to navigate the menu. */
+  readonly agentNavigated: boolean;
   readonly observedAt: number;
 }
 
-const looksLikeMenu = (text: string): boolean => {
+/** Does this turn read like a recording rather than a person? */
+export function soundsAutomated(text: string): boolean {
   const lower = text.toLowerCase();
-  return MENU_MARKERS.some((marker) => lower.includes(marker));
-};
+  return MACHINE_MARKERS.some((marker) => lower.includes(marker));
+}
 
 /**
- * Read a route out of one call's transcript.
+ * Fewer words than this and a turn tells us nothing either way.
  *
- * Returns `null` when no menu language appears at all — a number that answers
- * directly has no route to cache, and inventing one would poison the hint for
- * every later caller.
+ * Real transcripts are full of speech-recognition debris — the sample call
+ * contains a turn whose entire content is the word "To". Treating that as a
+ * person answering put the hold figure at fifteen seconds on a call where
+ * nobody ever picked up. A fragment is inconclusive, and inconclusive resolves
+ * to `null`, not to a person.
+ *
+ * The cost is a real "Hello?" being ignored. That errs toward reporting an
+ * unknown wait rather than inventing a short one, which is the direction this
+ * module fails in everywhere else.
  */
+const MIN_WORDS_FOR_A_PERSON = 3;
+
+function isFragment(text: string): boolean {
+  return text.trim().split(/\s+/).filter(Boolean).length < MIN_WORDS_FOR_A_PERSON;
+}
+
+/**
+ * Phrases the agent uses when it works a menu. Distinguishing "the agent
+ * navigated" from "a menu existed" matters: hearing a recording say the word
+ * "press" is not evidence that anything was pressed.
+ */
+const NAVIGATION_MARKERS = ["selecting", "pressing", "i'll press", "i will press", "choosing", "entering"];
+
 export function observeRoute(input: {
   readonly subjectId: string;
   readonly callId: string;
@@ -66,32 +123,43 @@ export function observeRoute(input: {
 }): RouteObservation | null {
   const prompts: string[] = [];
   const steps: string[] = [];
-  let reachedHumanAtSeconds: number | null = null;
+  let firstNonSystemTurnAtSeconds: number | null = null;
+  let agentNavigated = false;
 
   for (const turn of input.turns) {
-    if (turn.speaker === "user") {
-      // First human voice ends the automated portion.
-      if (reachedHumanAtSeconds === null) reachedHumanAtSeconds = turn.offset_seconds;
-      break;
+    if (turn.speaker === "bot") {
+      const lower = turn.text.toLowerCase();
+      if (NAVIGATION_MARKERS.some((marker) => lower.includes(marker))) {
+        agentNavigated = true;
+        steps.push(turn.text);
+      }
+      continue;
     }
-    if (turn.speaker === "unknown" && looksLikeMenu(turn.text)) {
+
+    // Anything not spoken by the agent is the other party, whatever CALL-E
+    // labelled it.
+    if (soundsAutomated(turn.text)) {
       prompts.push(turn.text);
       continue;
     }
-    if (turn.speaker === "bot" && prompts.length > 0) {
-      // A bot turn after a menu prompt is the agent working the menu.
-      steps.push(turn.text);
-    }
+    if (isFragment(turn.text)) continue;
+    if (firstNonSystemTurnAtSeconds === null) firstNonSystemTurnAtSeconds = turn.offset_seconds;
   }
 
   if (prompts.length === 0) return null;
+
+  const offsets = input.turns
+    .map((turn) => turn.offset_seconds)
+    .filter((offset): offset is number => offset !== null);
 
   return {
     subjectId: input.subjectId,
     callId: input.callId,
     steps,
     prompts,
-    reachedHumanAtSeconds,
+    callSeconds: offsets.length > 1 ? Math.max(...offsets) - Math.min(...offsets) : null,
+    firstNonSystemTurnAtSeconds,
+    agentNavigated,
     observedAt: input.observedAt ?? Date.now(),
   };
 }
@@ -122,26 +190,31 @@ export class RouteCache {
   /**
    * A routing hint for the task compiler, or `null` when nothing is known.
    *
-   * Deliberately short: it competes for the same 255 characters as the goal,
-   * and it is declared `"high"` priority rather than `"required"` so it is the
-   * first thing dropped when the goal needs the room.
+   * Only routes where the agent actually navigated produce a hint. Knowing a
+   * menu exists is not knowing the way through it.
    */
   public hintFor(subjectId: string): string | null {
     const entry = this.routes.get(subjectId);
-    if (!entry || entry.steps.length === 0) return null;
+    if (!entry || !entry.agentNavigated || entry.steps.length === 0) return null;
     return `Last time the menu path was: ${entry.steps.join(" then ")}`;
   }
 
   /**
-   * Seconds of hold this route has cost, summed across every cached route.
+   * Seconds the machine spent on the telephone across every cached route.
    *
-   * This is the number the product exists to move: time a machine spent in a
-   * queue instead of a person.
+   * This replaced a "time until a person answered" figure, which a real call
+   * showed could not be computed honestly: a modern voice IVR is written to
+   * sound conversational — the sample call's system said "in a few words,
+   * please tell me how I can help you" — and no amount of phrase matching
+   * separates that from a receptionist.
+   *
+   * Call duration needs no such judgement. It is the time a person did not
+   * spend holding, which is the claim worth making anyway.
    */
-  public totalHoldSeconds(): number {
+  public totalSecondsOnCall(): number {
     let total = 0;
     for (const entry of this.routes.values()) {
-      if (entry.reachedHumanAtSeconds !== null) total += entry.reachedHumanAtSeconds;
+      if (entry.callSeconds !== null) total += entry.callSeconds;
     }
     return total;
   }
