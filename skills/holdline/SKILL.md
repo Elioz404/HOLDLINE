@@ -36,16 +36,25 @@ This asks a fixed question and records the answer.
 
 ## Setup
 
+**This directory is documentation. It contains no runnable code.** The three
+tools below are served by an MCP server that lives in a separate repository,
+and the commands here only work from a clone of it:
+
 ```bash
+git clone https://github.com/Elioz404/HOLDLINE
+cd HOLDLINE
 npm install
 export CALLE_API_KEY=...   # server-side only, never in client code
 npm run mcp                # serves plan_hold, run_hold, get_verdict over stdio
 ```
 
+Then point your MCP client at that command. Nothing in this skill directory is
+executable, and running `npm` inside it will not work.
+
 Without `CALLE_API_KEY`, `plan_hold` still works — planning needs no network —
 and the dialing tools return an error saying exactly what is missing.
 
-To exercise the tools with no account at all:
+To exercise the tools with no CALL-E account at all, from the same clone:
 
 ```bash
 HOLDLINE_SIMULATE=1 npm run mcp

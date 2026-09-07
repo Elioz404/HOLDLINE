@@ -94,7 +94,7 @@ measuring.
 ### 3 — Technical Implementation
 
 CALL-E is imported and exercised at runtime through the genuine `CalleClient`;
-only the network underneath it is replaced in tests. 161 tests, no credentials,
+only the network underneath it is replaced in tests. 148 tests, no credentials,
 no calls. Strict E.164, unconditional emergency-prefix refusal, output
 redaction that covers echoed metadata and provider error bodies, idempotency
 keys derived from the authorizing record with no timestamp parameter to misuse,
@@ -158,68 +158,57 @@ ship a call that asks half a question.
 
 **Seven real calls broke things I had written down as true.** By the time an
 account existed the whole engine was built against the local fake, so the calls
-were a test of my assumptions as much as of the platform.
+were a test of my assumptions as much as of the platform. No transcript,
+recording or call artifact from any of them is kept in the repository — what
+follows is what they changed, in my own words.
 
 The first showed CALL-E labels the automated system as `user` — there is no
 `unknown` speaker at all. My route cache had assumed the opposite and would
 have reported "a person answered at ten seconds" on a recorded greeting. The
-second showed my own traversal check was worthless: it matched the word "press"
-in the recording's greeting and declared success on a call where the agent
+second showed my own traversal check was worthless: it matched a menu word in
+the recording's own greeting and declared success on a call where the agent
 pressed nothing. The third showed that framing a task as prohibitions makes the
 agent leave — told what not to do, it announced it was not requesting help and
 hung up 5.6 seconds in.
 
-**Then the last three did the thing this project was an argument about, and I
-did not have to construct it.**
+**Then one of them did the thing this project was an argument about, and I did
+not have to construct it.**
 
-One dispatch, two published carrier lines, the same question to both. Both
-answered. Both hung up after six seconds. Neither returned a single transcript
-turn.
+A call came back with a value that was a whole sentence reporting that nothing
+had been established — that the system had stayed in its menu and ended before
+answering. My gate marked it **`verified`**. The usable-value check knew only
+short sentinel tokens like `unknown` and `n/a`, so a refusal written in prose
+sailed straight through it.
 
-Let me be exact about what went wrong, because the obvious complaint is not the
-right one. The telephony was fine and CALL-E reported it accurately —
-*"[dispatch summary]"* — and both calls did
-connect and complete. Fair enough.
+The unit suite missed it. So did all 400 evaluated cases — because every value
+in that corpus was one word long. The measurement could not see its own worst
+case.
 
-The problem is a single field. `taskCompleted` came back **`true` at confidence
-1.0**, on a dispatch whose own `structuredResult` was
-`{"saturday_delivery": "unknown", "costs_extra": "unknown"}` for both
-recipients. The model said it did not know, twice, and the completion flag said
-it was done, perfectly. Those cannot both be right — and the flag is the thing
-a caller branches on.
+I fixed it in that order, and the order is the point: I added the class to the
+corpus first, measured the damage, and only then changed the check. Both
+directions are measured now, `asked_prose_non_answer` and
+`asked_prose_answered` — 57/57 caught, 0/57 genuine prose answers wrongly
+withheld. Correcting the metric moved the headline figure from an unearned
+`0.0% wrong` to the truth, and then the fix earned it back.
 
-The gate returned `no_transcript` on every field and withheld all four.
-
-Some of that was my fault and it is in the repository in those words: my task
+Some of the rest was my fault too and it is written down that way. One task
 text ended with *"if a person answers, thank them and end the call"*, and since
-CALL-E labels the automated system as a person, the greeting almost certainly
-fired my own exit instruction. I removed the clause and called once more. That
-call ran **194 seconds across 23 turns** — so the bug was mine. It still does
+CALL-E labels an automated system as a person, the greeting almost certainly
+fired my own exit instruction — two calls hung up at six seconds. Removing the
+clause produced a call that ran 194 seconds. The bug was mine. It still does
 not explain a completion flag reading `true` at full confidence sitting on top
-of two results that both said `"unknown"`.
-
-That last call is the best one. The agent asked plainly and kept asking. carrier
-never answered: it stopped accepting speech, demanded *"please key in the
-number of the option you'd like"*, and hung up. CALL-E's summary says exactly
-that — and `taskCompleted` is `true` at 0.88 anyway. The gate returned
-`asked_but_unclear` and withheld the field: not "never asked", which would
-libel an agent that did its job, and not verified, because there was nothing to
-verify.
+of results that said `"unknown"`.
 
 It also settled a question I had been guessing at. **The keypad boundary is now
-observed rather than assumed**: a real system required DTMF, the agent had only
-speech, and the call died there. HOLDLINE does not press keys. That is written
-down as a limit, not dressed up as a feature.
+observed rather than assumed**: a real system stopped accepting speech, required
+DTMF, and the call died there because the agent had only a voice. HOLDLINE does
+not press keys. That is written down as a limit, not dressed up as a feature.
 
-All three calls are kept whole and masked in `fixtures/`, and the test suite
-runs the gate over every one — `verified` with a real quote, everything
-withheld, and asked-but-unanswered. The full range, on real speech.
-
-One of them carries the honest cost too. `reached_human: "no"` was **correct**
-— nobody human came on the line — and the gate withheld it anyway, because
-nothing was *asked* that the value answers; the truth sat in what did not
-happen. We cannot credit a fact established by absence. We wrote that down as a
-limit rather than tuning it away, and there is a test holding us to it.
+They carry an honest cost too, and it is older than any of this. A fact
+established by *absence* cannot be credited. When nobody human ever comes on
+the line, `reached_human: "no"` is **correct** — and the gate withholds it
+anyway, because nothing was *asked* that the value answers; the truth sits in
+what did not happen. We wrote that down as a limit rather than tuning it away.
 
 ## Accomplishments that we're proud of
 
@@ -245,7 +234,7 @@ is still withheld, because an answer that cannot be attributed to a question
 should not be stored as fact. A benchmark containing only the cases a system
 handles is marketing.
 
-161 tests, no network and no credentials. Three production dependencies. The
+148 tests, no network and no credentials. Three production dependencies. The
 skill was copied into a clone of `awesome-phone-call-agents` and validated with
 that repository's own `scripts/validate_repository.py` before submission.
 
@@ -268,9 +257,9 @@ we built is that distinction, in one form or another.
 ## What's next
 
 Pressing keys. We now know exactly why it matters: a real carrier line stopped
-accepting speech mid-call, demanded *"[keypad demand]"*, and
-hung up on an agent that had only a voice. That is the single clearest thing
-seven live calls taught us about where this breaks.
+accepting speech mid-call, required a keypad selection, and hung up on an agent
+that had only a voice. That is the single clearest thing seven live calls
+taught us about where this breaks.
 
 Then a Slack action so a ward clerk can ask from where they already work,
 durable stores behind the ledger interfaces, and better probe tooling to push

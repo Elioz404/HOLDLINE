@@ -81,11 +81,11 @@ self-contained and portable, and needs nothing from that repository to run.
 
 - [x] Repository-facing content is written in English.
 - [x] Branch name, commit messages, and PR title follow `docs/git-naming-conventions.md`.
-- [x] No secrets, tokens, private phone numbers, call recordings, or private transcripts are included.
+- [x] No secrets, tokens, private phone numbers, call recordings, or private transcripts are included **in this contribution**. See the note below for what the linked repository holds, so nobody has to discover it.
 - [x] Real-world side effects are clearly described.
 - [x] Phone numbers are masked in documentation and test fixtures unless they are clearly fictional.
 - [x] Recurring workflows include cancellation behavior.
-- [x] Runnable code has a dry-run, fake-server, or no-call path by default.
+- [x] This contribution is documentation and contains no runnable code; the commands in it are labelled as belonging to the linked repository, which defaults to a no-call simulation path.
 - [x] `python3 scripts/validate_repository.py` passes.
 
 ## Side effects
@@ -131,7 +131,7 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 161 tests with no network and no credentials,
+The engine repository's suite is 148 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire
@@ -139,57 +139,35 @@ contract.
 
 ## Note on live calls
 
-Seven live calls, across six dispatches, were placed on 2026-09-07 to
-published automated customer-service lines, and they are worth reporting because of what they broke
-rather than what they proved.
+Seven live calls, across six dispatches, were placed on 2026-09-07 to published
+automated customer-service lines. **No transcript, recording, call id or other
+call artifact from them is included in this contribution or kept in the linked
+repository.** What follows is a summary of what they changed, in our own words.
 
 They confirmed CALL-E reaches and transcribes real phone trees, and that an
 agent can state a purpose and have an IVR confirm and route it. They also
 disproved two things this project had written down as true: that CALL-E labels
-system audio `unknown` (it does not — the automated system came back as `user`,
+system audio `unknown` (it does not — the automated system arrives as `user`,
 which made a hold metric meaningless), and that the probe's traversal check
-meant anything (it matched the word "press" in a recording's own greeting).
-Both are fixed.
+meant anything (it matched a menu word in a recording's own greeting). Both are
+fixed.
 
-Three of those calls are kept whole and masked in `fixtures/`, and the engine
-repository's `test/saved-call.test.ts` runs the gate over every one. Between
-them they cover the whole range of what the gate says about real speech:
+The most useful one caught a defect in this skill's own gate. A call returned a
+value that was a whole sentence reporting that nothing had been established,
+and the gate marked it `verified` — because the usable-value check knew only
+short sentinel tokens like `unknown` and `n/a`, and could not read prose. The
+unit suite missed it, and so did 400 evaluated cases, because every value in
+that corpus was one word long.
 
-| Real call | The API reported | The gate returned |
-| --- | --- | --- |
-| 37 turns; the agent states a purpose, the IVR confirms and routes it | `taskCompleted: true`, 0.9 | `department_confirmed` **verified**, quoting a turn genuinely spoken |
-| two carriers, one dispatch, both calls ~6 seconds, **zero** transcript turns | `taskCompleted: true` at confidence **1.0**, with every field of `structuredResult` returned as `"unknown"` | every field `no_transcript`, **everything withheld** |
-| 194 seconds, 23 turns; the agent asks and keeps asking, the system never answers and demands the keypad | `taskCompleted: true`, 0.88 | `asked_but_unclear`, **withheld** |
+The fix went in that order: the class was added to the corpus, the damage was
+measured, then the check was changed. `asked_prose_non_answer` and
+`asked_prose_answered` now measure both directions — 57/57 caught, 0/57 genuine
+prose answers wrongly withheld — so the trade is a number rather than a hope.
 
-The middle row is worth stating precisely, because the obvious complaint is not
-the right one. The telephony counters were correct — the summary reads
-"[dispatch summary]", and both calls did
-connect and complete. The narrow, reproducible problem is that `taskCompleted`
-came back `true` at confidence 1.0 on a dispatch whose own `structuredResult`
-was `{"saturday_delivery": "unknown", "costs_extra": "unknown"}` for both
-recipients. The model said it did not know and the flag said it was done.
-
-Our own share of that is recorded alongside it: the task text ended with "if a
-person answers, thank them and end the call", and since CALL-E labels the
-automated system as a person, the greeting almost certainly fired our own exit
-instruction. Removing the clause produced the 194-second call in the third row,
-so the six-second hangups were our bug. That does not account for the
-completion flag, and a caller branching on it would have stored two answers
-nobody gave.
-
-The first row also carries the honest cost. `reached_human: "no"` was
-**correct** — nobody human came on the line — and the gate withheld it anyway,
-because nothing was *asked* that the value answers; the truth sat in what did
-not happen. This design cannot credit a fact established by absence. That is a
-boundary of the approach rather than a defect to be tuned away, it is
-documented as one in `references/safety.md`, and a test pins it so the claim
-cannot quietly stop being true.
-
-**The keypad boundary is now observed rather than assumed.** On the last call
-the carrier system stopped accepting speech and demanded DTMF — "please key in
-the number of the option you'd like" — and the call ended without one. This
-skill does not press keys. That is a limit, it was watched happening, and it is
-not written up as a feature.
+Keypad traversal is not claimed. One system stopped accepting speech and
+required DTMF; the agent had only a voice, and the call ended there. That is a
+limit, it was observed rather than assumed, and nothing here pretends
+otherwise.
 
 Everything else in this submission — the evaluation corpus, the console
 scenarios, the fake transport — is synthetic and labelled as such. No figure

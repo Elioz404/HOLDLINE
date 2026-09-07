@@ -20,7 +20,8 @@ contain `"new patients"`, the gate finds no match. It does not accuse the field
 of being invented — a question was asked and answered, so it returns
 `unattributed` — but it does withhold the value. A real answer is lost.
 
-The measured cost, from `npm run eval` over 400 seeded cases:
+The measured cost, from the engine repository's `npm run eval` over 400 seeded
+cases — reproduce it there, not from this directory:
 
 | | |
 | --- | --- |
@@ -90,6 +91,10 @@ the exact turn the probe matched. If that quote is not the question you meant,
 the probe is matching the wrong thing, and the field is being verified against
 the wrong evidence.
 
+From a clone of the engine repository — this skill directory holds no runnable
+code, so the command does nothing from here:
+
 ```bash
+git clone https://github.com/Elioz404/HOLDLINE && cd HOLDLINE && npm install
 HOLDLINE_SIMULATE=1 npm run mcp
 ```

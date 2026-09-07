@@ -1,6 +1,6 @@
 # Demo video
 
-**Recorded. `docs/video/holdline.mp4` — 2:42, 1920×1080, H.264, narrated,
+**Recorded. `docs/video/holdline.mp4` — 2:40, 1920×1080, H.264, narrated,
 with `holdline.srt` beside it.**
 
 The rules cap it at three minutes and require it publicly visible on YouTube or
@@ -26,8 +26,8 @@ wall-clock offset where it appeared. `npm run mixdown` places each line of
 audio at that offset and writes the srt from the same numbers.
 
 Measured on the finished file, all 21 lines land within 0.03s of their caption,
-after a constant 0.17s of lead-in silence. Nothing was nudged by hand — there
-is no waveform to nudge.
+after a constant lead-in silence. Nothing was nudged by hand — there is no
+waveform to nudge.
 
 Captions are drawn into the page rather than burned in afterwards, so there is
 no subtitle filter in the chain and the type is under our control.
@@ -45,26 +45,29 @@ Timings are read from `docs/video/timing.json`, which the recorder wrote.
 | --- | --- |
 | 0:00 | The problem, over the console at rest. |
 | 0:21 | **Plan** — the task compiled into 255 characters, the malformed fourth number refused before dialing, the idempotency key derived from the batch record. |
-| 0:50 | **On the line** — three homes at once, `HOLDING`, the call's own clock climbing past a minute. |
-| 1:07 | **The verdicts** — one home verified with the sentence that established it, one withheld with the reason. |
-| 1:35 | **A real call** — `npm run replay` over `fixtures/saved-call-fedex-tracking.json`: one field verified quoting a genuinely spoken line, one withheld, and the withheld one was correct. |
-| 1:59 | **The call that caught us** — the live call that came back `verified` on a value stating nothing was established, and what was wrong underneath it. |
-| 2:21 | **The numbers** — `npm run eval`, both the catch rate and its cost. |
+| 0:51 | **On the line** — three homes at once, the call's own clock climbing past a minute. |
+| 1:08 | **The verdicts** — one home verified with the sentence that established it, one withheld with the reason. |
+| 1:35 | **The gate over a saved call** — `npm run replay` over the synthetic fixture: one field verified quoting the sentence that established it, one flagged for carrying a value the call never asked about. |
+| 1:57 | **The call that caught us** — the live call that came back `verified` on a value stating nothing was established, and what was wrong underneath it. |
+| 2:19 | **The numbers** — `npm run eval`, both the catch rate and its cost. |
 
 ## Honesty, which is on screen and not in small print
 
-The console segment runs against the local simulator. It says `SIMULATION` in
-the header throughout, and the narration says so out loud at 1:00: *"This
-console runs against a local simulator, and labels itself so. The real calls
-come next."*
+The console runs against the local simulator. It says `SIMULATION` in the
+header throughout, and the narration says so out loud at 1:00.
 
-Everything after 1:35 is real: real transcripts from real CALL-E calls,
-judged on camera. No figure shown is a measurement of CALL-E's live
-performance.
+From 1:35 the screen shows real tool output: the gate judging a saved call,
+the defect a live call exposed in that gate, and the measured evaluation. **No
+call transcript, recording or call artifact appears anywhere in this video.**
+The fixture judged on screen is synthetic and labelled as such in the file
+itself.
 
-The keypad is not claimed. A real carrier line stopped accepting speech, demanded
-*"[keypad demand]"*, and hung up on an agent that had only a
-voice — that is a limit, and the video does not pretend otherwise.
+Seven live calls were placed while building this, and what they changed is
+described in the README in our own words. Nothing from them is reproduced here.
+
+The keypad is not claimed. A real carrier line stopped accepting speech,
+required a keypad selection, and hung up on an agent that had only a voice —
+that is a limit, and the video does not pretend otherwise.
 
 ## Audio and subtitles
 
@@ -87,4 +90,4 @@ local output, reproducible from one command.
 - **Public**, not unlisted — the rules say publicly visible.
 - Title: `HOLDLINE — phone answers you can actually trust`
 - Description: link the repository and the pull request, and say in the first
-  two lines that the console segment is simulated and the transcripts are real.
+  two lines that the console segment is simulated.

@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 import { DAY, FactLedger, HOUR, type TtlPolicy } from "../src/ledger/facts.js";
 import { RouteCache, observeRoute } from "../src/ledger/routes.js";
@@ -174,22 +172,37 @@ describe("route cache", () => {
   });
 
   /**
-   * The correction a real call forced. CALL-E labels the automated system
-   * `user`, never `unknown`, so identifying the other party by label reported
-   * a person answering at the greeting. Content is what separates them.
+   * The correction a live call forced, kept as a transcript written for this
+   * test.
+   *
+   * CALL-E labels an automated system `user`, never `unknown`. Identifying the
+   * other party by speaker label therefore reported a person answering at the
+   * greeting, on a call where nobody ever picked up. Content is what separates
+   * a recording from a person, and these turns are shaped to prove it: every
+   * `user` turn here is a menu prompt.
+   *
+   * No recording is stored in this repository. The shape is what matters, and
+   * the shape is reproduced.
    */
-  it("does not mistake a recording for a person just because it is labelled user", () => {
-    const real = JSON.parse(
-      readFileSync(join(import.meta.dirname, "..", "fixtures", "saved-call-usps-after-hours.json"), "utf8"),
-    ) as { transcriptTurns: CallTranscriptTurn[] };
+  const AFTER_HOURS: CallTranscriptTurn[] = [
+    { offset_seconds: 4, speaker: "user", text: "Thank you for calling. You have reached us after normal business hours." },
+    { offset_seconds: 12, speaker: "bot", text: "Hello, I am an automated assistant calling on behalf of a customer." },
+    { offset_seconds: 21, speaker: "user", text: "Please listen carefully, as our menu options have changed." },
+    { offset_seconds: 35, speaker: "user", text: "For tracking, press 1. To speak with an agent, stay on the line." },
+    { offset_seconds: 49, speaker: "bot", text: "I would like to ask about collection times." },
+    { offset_seconds: 63, speaker: "user", text: "I did not catch that. Please listen carefully and choose from the main menu." },
+    { offset_seconds: 98, speaker: "user", text: "All of our representatives are unavailable. Please hold." },
+    { offset_seconds: 143, speaker: "user", text: "Thank you for calling. Goodbye." },
+  ];
 
-    // No `unknown` speaker exists in a real transcript.
-    expect(new Set(real.transcriptTurns.map((t) => t.speaker))).toEqual(new Set(["bot", "user"]));
+  it("does not mistake a recording for a person just because it is labelled user", () => {
+    // There is no `unknown` speaker. Every machine turn arrives as `user`.
+    expect(new Set(AFTER_HOURS.map((t) => t.speaker))).toEqual(new Set(["bot", "user"]));
 
     const observation = observeRoute({
-      subjectId: "usps",
-      callId: "call_real",
-      turns: real.transcriptTurns,
+      subjectId: "after-hours",
+      callId: "call_fixture_after_hours",
+      turns: AFTER_HOURS,
     });
 
     expect(observation).not.toBeNull();
@@ -202,15 +215,13 @@ describe("route cache", () => {
   });
 
   it("offers no hint from a call where the agent never navigated", () => {
-    const real = JSON.parse(
-      readFileSync(join(import.meta.dirname, "..", "fixtures", "saved-call-usps-after-hours.json"), "utf8"),
-    ) as { transcriptTurns: CallTranscriptTurn[] };
-
     const cache = new RouteCache();
-    cache.record(observeRoute({ subjectId: "usps", callId: "call_real", turns: real.transcriptTurns })!);
+    cache.record(
+      observeRoute({ subjectId: "after-hours", callId: "call_fixture_after_hours", turns: AFTER_HOURS })!,
+    );
 
     // Knowing a menu exists is not knowing the way through it.
-    expect(cache.hintFor("usps")).toBeNull();
+    expect(cache.hintFor("after-hours")).toBeNull();
     // Nobody answered, and the machine was still on the telephone for minutes.
     // That time is the measurable claim, and it does not depend on guessing
     // whether the voice on the other end was a person.

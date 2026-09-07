@@ -148,11 +148,9 @@ const GREETING: CallTranscriptTurn[] = [
  * When a result field's answer is prose rather than an enumerated token, a
  * model can report *not having found out* in unbounded language. A lexical
  * check against a short list of sentinels like `"unknown"` cannot see that. A
- * live call to carrier returned, in full:
- *
- *   "[nothing established]; the call remained in carrier's automated
- *    automated menu and ended before explaining what a documented topic is or where
- *    the tracking number appears."
+ * live call to a carrier's automated line returned a value that was a whole
+ * sentence saying no explanation had been given and the call had ended before
+ * the question was answered.
  *
  * The gate called that `verified`. It is the exact failure this project was
  * built to catch, committed by this project, and it went unmeasured because
@@ -187,10 +185,14 @@ const PROSE_ANSWERS: Record<string, readonly string[]> = {
   ],
 };
 
-/** What a system says when it will not answer: a prompt, repeated, then nothing. */
+/**
+ * What a system says when it will not answer: a prompt, repeated, then nothing.
+ * Written for this corpus, like everything else here — no line in this file is
+ * taken from a recording.
+ */
 const STONEWALL: readonly string[] = [
-  "Sorry. If you're calling about this, say yes or press 1. If not, say no or press 2.",
-  "Sorry, I still didn't get that. [keypad demand].",
+  "I did not catch that. To continue, choose one of the options in the menu.",
+  "Still nothing. Enter your selection on the keypad to carry on.",
 ];
 
 const FAREWELL: CallTranscriptTurn = {

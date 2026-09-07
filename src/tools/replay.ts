@@ -7,8 +7,8 @@
  * gate working on real speech without dialing anyone, and to check a change to
  * the gate against a transcript whose right answer is already known.
  *
- * With no arguments it replays the carrier call in `fixtures/`, which is real,
- * masked, and carries a structured result worth arguing with.
+ * With no arguments it replays the synthetic fixture in `fixtures/`, which is
+ * labelled as synthetic and carries a structured result worth arguing with.
  *
  *   npm run replay
  *   npm run replay -- --call probe-output/run.masked.json \
@@ -22,12 +22,20 @@ import { readFileSync } from "node:fs";
 import { runEvidenceGate, gatedResult } from "../evidence/gate.js";
 import type { CallTranscriptTurn, CompletionConfidence, FieldProbe } from "../evidence/types.js";
 
-const DEFAULT_CALL = new URL("../../fixtures/saved-call-fedex-tracking.json", import.meta.url);
+const DEFAULT_CALL = new URL("../../fixtures/traversal-with-menu.json", import.meta.url);
 
-/** The probes the carrier fixture is judged with. Written after speech, not field names. */
+/**
+ * The probes the default fixture is judged with. Written after the words the
+ * agent says, not after the field names — see `references/probes.md`.
+ *
+ * They are deliberately uneven, because that is what makes the demo worth
+ * running: the agent does ask which department it reached, so that field is
+ * established. Nothing in the call asks whether a person was reached, and yet
+ * a value for it comes back — which is the case the gate exists to catch.
+ */
 const DEFAULT_PROBES: FieldProbe[] = [
-  { field: "department_confirmed", required: true, asks: ["package tracking", "track a package", "tracking option"] },
-  { field: "reached_human", required: true, asks: ["speak to a person", "speak to somebody", "transfer me to an agent"] },
+  { field: "department_confirmed", required: true, asks: ["account services department", "am i speaking with"] },
+  { field: "reached_human", required: true, asks: ["are you a person", "speak to a human"] },
 ];
 
 interface SavedCall {

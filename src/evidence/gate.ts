@@ -74,12 +74,10 @@ export const DEFAULT_MIN_CONFIDENCE = 0.7;
  *
  * `unknownValues` covers a field whose answer is an enumerated token, where
  * "I don't know" arrives as `"unknown"`. It cannot cover a field whose answer
- * is prose, because there the model says so in a sentence. A live call
- * returned, in full:
- *
- *   "[nothing established]; the call remained in carrier's automated
- *    automated menu and ended before explaining what a documented topic is or where
- *    the tracking number appears."
+ * is prose, because there the model says so in a sentence. A live call to a
+ * carrier's automated line returned a value that was a whole sentence saying
+ * no explanation had been given and the call had ended before the question was
+ * answered.
  *
  * That is not an answer. It is a report that there was no answer, and the gate
  * called it `verified` — the exact failure this file exists to prevent.

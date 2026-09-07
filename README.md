@@ -115,10 +115,10 @@ table rather than in a footnote.
 
 The last two rows exist because a live call proved the corpus was blind. Every
 value in it used to be a single token, so a result field whose answer is prose
-was never tested — and a real call came back with the sentence *"[nothing established]
-was provided; the call remained in carrier's automated automated menu and ended
-before explaining…"*, which the gate called **verified**. A confident
-unsupported value, waved through by the component built to stop exactly that.
+was never tested — and a call came back with a value that was a whole sentence
+reporting that nothing had been established, which the gate called
+**verified**. A confident unsupported value, waved through by the component
+built to stop exactly that.
 Both the corpus and `isUsableValue` were fixed; the story is in
 [What the live calls broke](#what-is-real-and-what-is-not).
 
@@ -332,10 +332,10 @@ last one passed a call where the agent said "Okay" twenty-six times to a
 looping announcement. The tool reports what it can see and leaves the
 judgement to whoever reads the transcript.
 
-`fixtures/saved-call-usps-after-hours.json` holds an excerpt of that call. It is
-kept as evidence for the paragraphs above, not as test input; the fixture the
-tests actually run against is `saved-call-fedex-tracking.json`, judged in
-`test/saved-call.test.ts`.
+No transcript from that call is kept here. The correction it forced is pinned
+instead by a transcript written for the test, in `test/ledger.test.ts`: every
+machine turn labelled `user`, and the route ledger required to read none of
+them as a person.
 
 ### Webhooks are a doorbell, not a document
 
@@ -409,17 +409,19 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 161 tests, no network, no credentials
+npm test          # 148 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
-npm run replay    # judges a real saved call; no network, no key, no call
+npm run replay    # judges a saved call; no network, no key, no call
 npm run gallery   # re-capture docs/screenshots from the live console
 ```
 
-`npm run replay` with no arguments reads
-`fixtures/saved-call-fedex-tracking.json` — an actual CALL-E call, masked — and
-prints what the call reported beside what its transcript supports. Point it at
-any saved call and give it your own probes:
+`npm run replay` with no arguments reads `fixtures/traversal-with-menu.json` —
+a synthetic call, labelled as one — and prints what the call reported beside
+what its transcript supports. The default probes are deliberately uneven, so
+one field comes back verified with the sentence that established it and another
+is flagged for carrying a value the call never asked about. Point it at any
+saved call and give it your own probes:
 
 ```bash
 npm run replay -- --call probe-output/run.masked.json                   --field in_stock="in stock,have any,availability"
@@ -481,58 +483,39 @@ interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
 **Seven live calls have been placed**, across six dispatches, on 2026-09-07,
-to published automated customer-service lines. They cost more than they gave and were worth every one:
+to published automated customer-service lines. **No transcript, recording or
+call artifact from them is kept in this repository.** What follows is what they
+changed, in our own words:
 
-- CALL-E reached and transcribed real phone trees, up to 67 turns, with timings.
+- CALL-E reached and transcribed real phone trees, and an agent stated a
+  purpose and had an IVR confirm and route it.
 - They disproved two things this repository had documented as true: the
   speaker-label assumption in the route cache, and the probe's own traversal
   verdict. Both are corrected.
-- **The keypad boundary is now observed rather than assumed.** On the last
-  call the carrier system stopped accepting speech and demanded DTMF — *"please
-  [keypad demand] you'd like"* — and the call ended without
-  one. HOLDLINE does not press keys. That is a limit, it was watched
+- **The keypad boundary is observed rather than assumed.** One system stopped
+  accepting speech and required DTMF; the agent had only a voice, and the call
+  ended there. HOLDLINE does not press keys. That is a limit, it was watched
   happening, and it is not written here as a feature.
 
-**Three of those calls are kept whole and masked in `fixtures/`, and
-`test/saved-call.test.ts` runs the gate over every one.** Between them they
-cover the whole range of what the gate says about real speech:
+**The most useful one caught a defect in this repository's own gate.** A call
+returned a value that was a whole sentence reporting that nothing had been
+established, and the gate marked it `verified` — because the usable-value check
+knew only short sentinel tokens like `unknown` and `n/a`, and could not read
+prose. The unit suite missed it, and so did 400 evaluated cases, because every
+value in that corpus was one word long.
 
-| Real call | CALL-E reported | The gate returned |
-| --- | --- | --- |
-| `saved-call-fedex-tracking.json` — 37 turns, agent states a purpose, IVR confirms and routes it | `taskCompleted: true`, 0.9 | `department_confirmed` **verified**, quoting a turn genuinely spoken |
-| `saved-call-completed-without-transcript.json` — two carriers, one dispatch, both calls ~6 seconds, **zero** transcript turns | `taskCompleted: true` at confidence **1.0**, with every field of `structuredResult` returned as `"unknown"` | every field `no_transcript`, **everything withheld** |
-| `saved-call-asked-never-answered.json` — 194 seconds, 23 turns, the agent asks and keeps asking; the system never answers and demands the keypad | `taskCompleted: true`, 0.88 | `asked_but_unclear`, **withheld** |
+The fix went in that order, and the order is the point: the class was added to
+the corpus first, the damage was measured, and only then was the check changed.
+`asked_prose_non_answer` and `asked_prose_answered` now measure both directions
+— 57/57 caught, 0/57 genuine prose answers wrongly withheld — so the trade is a
+number rather than a hope.
 
-The middle row is the one to read twice, and it needs stating precisely. The
-telephony counters were **correct**: the summary reads
-*"Successful: 2 \| Declined: 0 \| No answer: 0 \| Failed: 0"*, and both calls
-genuinely did connect and complete. That is not the problem.
-
-The problem is one field. `taskCompleted` came back `true` at confidence
-**1.0** on a dispatch whose own `structuredResult` was
-`{"saturday_delivery": "unknown", "costs_extra": "unknown"}` for both
-recipients. The model said it did not know, twice, and the completion flag said
-it was done, perfectly. Those two cannot both be right, and a caller reads the
-flag.
-
-Our own share of that is written down too: the task text for that dispatch
-ended with *"if a person answers, thank them and end the call"*, and CALL-E
-labels the automated system as a person — the greeting almost certainly fired
-our own exit instruction. The next call, with the clause removed, ran 194
-seconds. The bug was ours. It still does not explain `taskCompleted: true` at
-confidence 1.0 sitting on top of two `"unknown"` results.
-
-The first row's second half is the honest cost. `reached_human: "no"` was
-**correct** — nobody human came on the line — and the gate withheld it anyway,
-because nothing was *asked* that the value answers; the truth sat in what did
-not happen. This design cannot credit a fact established by absence. That is a
-boundary of the approach rather than a bug to tune away, it is written down in
-`skills/holdline/references/safety.md`, and a test pins it so the claim cannot
-quietly stop being true. Withholding a correct answer is the price of never
-storing an unsupported one.
-
-`fixtures/saved-call-usps-after-hours.json` keeps an excerpt of a fourth call,
-which is where the speaker-label correction came from.
+The gate's other honest cost is older and still published: a fact established
+by *absence* cannot be credited. If nobody human ever comes on the line, then
+`reached_human: "no"` is true and the gate withholds it anyway, because nothing
+was *asked* that the value answers. That is a boundary of the approach rather
+than a bug to tune away, and it is written down in
+`skills/holdline/references/safety.md`.
 
 Everything else — the console, the evaluation corpus, the fake transport — is
 still synthetic and labelled as such. No figure in this README is a measurement

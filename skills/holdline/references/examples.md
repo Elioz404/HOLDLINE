@@ -180,7 +180,12 @@ place starts with a route hint.
 
 ## Trying it without an account
 
+The tools are served by an MCP server in a separate repository. This skill
+directory is documentation and contains no runnable code, so these commands are
+for a clone of that repository, not for here:
+
 ```bash
+git clone https://github.com/Elioz404/HOLDLINE && cd HOLDLINE && npm install
 HOLDLINE_SIMULATE=1 npm run mcp
 ```
 

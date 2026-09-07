@@ -124,30 +124,29 @@ async function main(): Promise<void> {
     await shoot(page, "on-the-line",
       "Three homes on the line at once, each working its own menu. That clock is the call’s own.");
 
-    // ── real calls, judged ────────────────────────────────────────────────
-    await page.setContent(terminalPage("npm run replay — a real CALL-E call, judged", replayOut), { waitUntil: "load" });
+    // ── the gate, over a saved call ───────────────────────────────────────
+    await page.setContent(terminalPage("npm run replay — a saved call, judged", replayOut), { waitUntil: "load" });
     await installCaption(page);
-    await shoot(page, "saved-call-judged",
-      "A <b>real CALL-E call</b>, re-judged: one field verified quoting a line genuinely spoken, one withheld.");
+    await shoot(page, "gate-over-a-saved-call",
+      "One field <b>verified</b>, quoting the sentence that established it. <i>One flagged</i> — a value the call never asked about.");
 
     await page.setContent(
       terminalPage(
         "the call that caught us",
         [
-          "  A live call came back like this:",
+          "  A live call to an automated line came back like this:",
           "",
           "    verdict   verified",
-          '    answers   {"topic_explained": "[nothing established]; the',
-          "               call remained in carrier’s automated automated menu and",
-          '               ended before explaining what a documented topic is..."}',
+          "    answers   { field: <a whole sentence saying no explanation was",
+          "                 given, and the call ended before answering> }",
           "",
           "  A value that says nothing was established — waved through as verified.",
           "  The usable-value check only knew the tokens “unknown”, “n/a”, “none”.",
           "",
-          "  161 unit tests missed it. 400 evaluated cases missed it, because every",
-          "  value in that corpus was one word long. A real phone call found it.",
+          "  The unit suite missed it. 400 evaluated cases missed it too, because",
+          "  every value in that corpus was one word long. A phone call found it.",
           "",
-          "  Fixed, and pinned by test/saved-call.test.ts so it cannot come back.",
+          "  Fixed, and measured in the corpus so it cannot come back unnoticed.",
         ].join("\n"),
       ),
       { waitUntil: "load" },

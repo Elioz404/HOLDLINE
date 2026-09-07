@@ -89,10 +89,18 @@ export function terminalPage(title: string, body: string): string {
   return `<!doctype html><meta charset="utf-8"><style>
     :root { color-scheme: dark; }
     body { margin: 0; background: #06090c; color: #d7e2ec; height: 100vh; overflow: hidden;
-           font: 400 15.5px/1.55 ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace; }
+           font: 400 14px/1.5 ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace; }
     header { padding: 30px 56px 10px; font: 600 15px ui-sans-serif, system-ui, sans-serif;
              letter-spacing: .16em; text-transform: uppercase; color: #7d8b99; }
-    pre { margin: 0; padding: 4px 56px; white-space: pre; }
+    /*
+     * pre-wrap, not pre. Real tool output contains quoted transcript turns
+     * that run past 1280px, and pre clips them at the frame edge — a still
+     * image cannot be scrolled, so the end of the sentence is simply lost. The
+     * hanging indent keeps a wrapped line reading as a continuation rather
+     * than as a new column. (No backticks in here: this whole block is inside
+     * a template literal.)
+     */
+    pre { margin: 0; padding: 2px 56px; white-space: pre-wrap; }
   </style>
   <header>${title}</header>
   <pre>${escaped}</pre>`;

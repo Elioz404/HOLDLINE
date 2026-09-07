@@ -59,8 +59,8 @@ export const SCRIPT: readonly ScriptLine[] = [
     speech: "Three homes on the line at once, each one working its own menu. That clock is the call's own clock. Nobody is listening to this.",
   },
   {
-    caption: "This console runs against a local simulator, and labels itself so. <i>The real calls come next.</i>",
-    speech: "This console runs against a local simulator, and labels itself so. The real calls come next.",
+    caption: "This console runs against a local simulator, and labels itself so — on screen, throughout.",
+    speech: "This console runs against a local simulator, and labels itself so. On screen, throughout.",
   },
 
   {
@@ -82,17 +82,17 @@ export const SCRIPT: readonly ScriptLine[] = [
   },
 
   {
-    segment: "a real call",
-    caption: "This is a <b>real call</b>, to a real phone tree. CALL-E returned it at 0.9 confidence.",
-    speech: "This is a real call, to a real phone tree. Call E returned it at nought point nine confidence.",
+    segment: "the gate, over a saved call",
+    caption: "Any finished call can be put back through the gate — no network, no key, nobody dialled.",
+    speech: "Any finished call can be put back through the gate. No network, no key, nobody dialled.",
   },
   {
-    caption: "One field is verified, quoting a line genuinely spoken on the call. The other is withheld.",
-    speech: "One field is verified, quoting a line genuinely spoken on the call. The other is withheld.",
+    caption: "One field is <b>verified</b>, and there is the sentence that established it, quoted from the call.",
+    speech: "One field is verified, and there is the sentence that established it, quoted from the call.",
   },
   {
-    caption: "And the withheld one was <i>right</i> — nobody human came on the line. But nothing was asked that could establish that, so we don’t get to claim it.",
-    speech: "And the withheld one was right. Nobody human came on the line. But nothing was asked that could establish that, so we don't get to claim it.",
+    caption: "The other came back populated and confident — but <i>nothing in that call asked it</i>. So the caller gets a gap, not a guess.",
+    speech: "The other came back populated, and confident. But nothing in that call asked it. So the caller gets a gap, not a guess.",
   },
 
   {
@@ -101,8 +101,8 @@ export const SCRIPT: readonly ScriptLine[] = [
     speech: "Then a live call caught us doing the exact thing we accuse everyone else of.",
   },
   {
-    caption: "The gate called that verified. Nothing in 161 tests or 400 evaluated cases saw it — free-text answers were never in the corpus.",
-    speech: "The gate called that verified. Nothing in 161 tests, or 400 evaluated cases, saw it. Free text answers were never in the corpus.",
+    caption: "The gate called that verified. Nothing in the unit suite or 400 evaluated cases saw it — free-text answers were never in the corpus.",
+    speech: "The gate called that verified. Nothing in the unit suite, or 400 evaluated cases, saw it. Free text answers were never in the corpus.",
   },
   {
     caption: "So we added the class, measured the damage, then fixed it. In that order.",
