@@ -75,7 +75,7 @@ export interface TargetOutcome {
   readonly result: Record<string, unknown>;
   /**
    * This recipient's transcript turns. Carried so callers can observe the menu
-   * route and the time-to-human without refetching the call. It contains a real
+   * route and the call duration without refetching the call. It contains a real
    * conversation: redact before it reaches a log or a screen.
    */
   readonly transcript: readonly CallTranscriptTurn[];

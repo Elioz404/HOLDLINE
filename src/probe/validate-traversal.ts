@@ -60,16 +60,29 @@ const MENU_MARKERS = [
   "to speak with",
 ];
 
+/**
+ * Probes for the probe's own result fields.
+ *
+ * The first version asked for `reached_human` with
+ * `/hello|hi there|good morning|am i speaking/i`, which matched the agent's
+ * own greeting — "Hello, can you hear me?" — and reported the field verified
+ * on a call that reached no human at all. `references/probes.md` warns against
+ * exactly that and I wrote it anyway.
+ *
+ * These now match the question, not the pleasantry, and both are optional:
+ * a menu-only call is not supposed to establish either one, so requiring them
+ * would fail every honest run.
+ */
 const PROBES: FieldProbe[] = [
   {
     field: "reached_human",
-    required: true,
-    asks: [/hello|hi there|good morning|good afternoon|am i speaking/i],
+    required: false,
+    asks: [/are you a (person|human)/i, /am i speaking (to|with) a (person|human)/i],
   },
   {
     field: "department_confirmed",
-    required: true,
-    asks: ["department", "team", "desk", "right person"],
+    required: false,
+    asks: [/is this the .* (department|desk|team)/i, /have i reached/i],
   },
 ];
 
@@ -151,8 +164,17 @@ function buildTask(goal: string, menuOnly = false): ReturnType<typeof compileTas
     { label: "goal", text: goal, priority: "required" },
     {
       label: "routing",
+      // Framed as what to do, not what to avoid. The first version said
+      // "never queue for a person or ask for one"; the agent read that as
+      // having nothing to ask for, announced it was not requesting help, and
+      // hung up 5.6 seconds in, before the greeting had finished. A task is a
+      // prompt, and a prompt made of prohibitions gets a refusal.
+      // Positive framing, but the prohibition that keeps a stranger off the
+      // line stays. Dropping it once was enough: on a real carrier call the
+      // agent answered "yes, please connect me to a representative" three
+      // times when the IVR offered. Rewriting for tone lost a safety rule.
       text: menuOnly
-        ? "Stay in the automated menu. Never queue for a person or ask for one."
+        ? "Listen first, then use the menu. Decline any offer of a representative."
         : "Navigate any phone menu to reach a live representative.",
       // In menu-only mode this carries the constraint that keeps a stranger
       // off the line, so it must not be the first thing dropped.
@@ -224,9 +246,6 @@ function report(call: Call): void {
   // reported traversal on a call where the recording said "press 2" and the
   // agent pressed nothing.
   const menuHeard = turns.some((t) => t.speaker !== "bot" && soundsAutomated(t.text));
-  const agentNavigated = turns.some(
-    (t) => t.speaker === "bot" && /selecting|pressing|choosing|entering/i.test(t.text),
-  );
   const personAt = route?.firstNonSystemTurnAtSeconds ?? null;
 
   console.log("\n─────────────── verdict ────────────────");
@@ -235,19 +254,26 @@ function report(call: Call): void {
   } else {
     console.log(`menu heard         ${menuHeard ? "yes" : "no"}`);
     console.log(
-      `agent navigated    ${agentNavigated ? "yes" : "no — it heard a menu but worked none of it"}`,
+      `used keypad        ${route?.usedKeypad ? "yes" : "no"}`,
     );
     console.log(
-      `person reached     ${personAt === null ? "no, or not distinguishable" : `${personAt}s`}`,
+      `first non-system   ${personAt === null ? "none identified" : personAt + "s (a candidate, not a confirmed person)"}`,
     );
     console.log("");
-    if (agentNavigated && personAt !== null) {
-      console.log("TRAVERSAL CONFIRMED — the agent worked a menu and reached a person.");
-    } else if (menuHeard) {
-      console.log("PARTIAL — a real menu was reached and transcribed, but this call does");
-      console.log("not show the agent navigating one. Not evidence of traversal.");
-    } else {
+    // No verdict on whether the agent *navigated*. Four heuristics were tried
+    // here and all four were too loose: matching "press" anywhere, then keypad
+    // words, then any reply after a prompt — each one called a call navigated
+    // that was not. On one real call the agent said "Okay" twenty-six times to
+    // a looping announcement and every rule so far scored it a success.
+    //
+    // Whether a tree was worked is a judgement, and the honest tool reports
+    // what it can see and hands the judgement to a person.
+    if (!menuHeard) {
       console.log("NO MENU — nothing in this call had a phone tree to traverse.");
+    } else {
+      console.log("A real phone tree was reached and transcribed.");
+      console.log("Whether the agent worked it is not something this tool decides:");
+      console.log("read the transcript in the masked file and judge it yourself.");
     }
   }
 }
@@ -296,8 +322,13 @@ async function main(): Promise<number> {
   // yours. Against a public line it is not: it occupies someone's time to
   // answer a question we do not actually have. `--menu-only` walks the tree,
   // reports what it heard, and hangs up without queueing for an agent.
+  // CALL-E plans before it dials and refuses a task it cannot picture. It
+  // rejected "press a keypad option and report what you hear" with a 422 and
+  // the question "which menu option, department, or purpose should the
+  // assistant try to reach?" — a good refusal that cost nothing. A menu-only
+  // probe still has to name where it is going.
   const MENU_ONLY_GOAL =
-    "Listen to the phone menu and report the options it offers.";
+    "Reach the package tracking option by keypad and report the choices offered there.";
 
   const goal = args.goal ?? (args.menuOnly ? MENU_ONLY_GOAL : "Reach a representative and confirm which department you have been connected to.");
 

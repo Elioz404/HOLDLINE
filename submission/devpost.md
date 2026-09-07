@@ -94,7 +94,7 @@ measuring.
 ### 3 — Technical Implementation
 
 CALL-E is imported and exercised at runtime through the genuine `CalleClient`;
-only the network underneath it is replaced in tests. 129 tests, no credentials,
+only the network underneath it is replaced in tests. 151 tests, no credentials,
 no calls. Strict E.164, unconditional emergency-prefix refusal, output
 redaction that covers echoed metadata and provider error bodies, idempotency
 keys derived from the authorizing record with no timestamp parameter to misuse,
@@ -120,7 +120,8 @@ The decision that shaped everything: the CALL-E SDK accepts an injectable
 `GET /v1/calls/{id}`, snake_case bodies, the `Idempotency-Key` header — as a
 fake transport and handed it to the genuine `CalleClient`. Our engine talks to
 the real SDK; only the network is replaced. Tests need no credentials and place
-no calls, and when an account arrives nothing above that line changes.
+no calls — and when we did get an account and dialled for real, nothing above
+that line had to change.
 
 We made that fake adversarial rather than convenient. It reproduces CALL-E's
 *documented failure modes*, each traced to a public issue: a confident result
@@ -155,13 +156,33 @@ share the budget. We compile the task from prioritised segments and drop the
 lowest first — and fail loudly rather than truncate a required instruction and
 ship a call that asks half a question.
 
-**We could not get an account.** CALL-E's dashboard offers sign-in with no
-sign-up path; several hackathon participants report the same in Discord, and
-the OAuth metadata confirms there is no self-serve user registration anywhere
-in the product. So no live call has been placed. Everything in the demo runs
-against the local simulator, every response is labelled `simulated: true` on
-screen, and no figure here is presented as a measurement of CALL-E's live
-behaviour.
+**Three real calls broke things I had written down as true.** By the time an
+account existed the whole engine was built against the local fake, so the calls
+were a test of my assumptions as much as of the platform.
+
+The first showed CALL-E labels the automated system as `user` — there is no
+`unknown` speaker at all. My route cache had assumed the opposite and would
+have reported "a person answered at ten seconds" on a recorded greeting. The
+second showed my own traversal check was worthless: it matched the word "press"
+in the recording's greeting and declared success on a call where the agent
+pressed nothing. The third showed that framing a task as prohibitions makes the
+agent leave — told what not to do, it announced it was not requesting help and
+hung up 5.6 seconds in.
+
+They also showed the thing I wanted: an agent stating a purpose, an IVR
+confirming it — *"you're calling to track a package, right?"* — and routing it.
+By speech. The keypad was offered and never used, so DTMF traversal is still
+unobserved, and the repository says so.
+
+One of those calls is kept whole and masked as a fixture, and the gate is run
+over it in the test suite. CALL-E's own summary of it was candid — the system
+would not continue without a tracking number — while `taskCompleted` came back
+`true` at 0.9 confidence. The gate verifies one field and quotes the line that
+established it, a sentence genuinely spoken on the call. It withholds
+`reached_human: "no"`, which was correct: nobody human came on the line, but
+nothing was *asked* that the value answers, because the truth is in what did
+not happen. We cannot credit a fact established by absence, we wrote that down
+as a limit rather than tuning it away, and there is a test holding us to it.
 
 ## Accomplishments that we're proud of
 
@@ -185,7 +206,7 @@ is still withheld, because an answer that cannot be attributed to a question
 should not be stored as fact. A benchmark containing only the cases a system
 handles is marketing.
 
-129 tests, no network and no credentials. Three production dependencies. The
+151 tests, no network and no credentials. Three production dependencies. The
 skill was copied into a clone of `awesome-phone-call-agents` and validated with
 that repository's own `scripts/validate_repository.py` before submission.
 
@@ -207,10 +228,13 @@ we built is that distinction, in one form or another.
 
 ## What's next
 
-A live call, the moment an account exists — the traversal probe is written and
-waiting, and it is one command. Then a Slack action so a ward clerk can ask
-from where they already work, durable stores behind the ledger interfaces, and
-better probe tooling to push that withheld-paraphrase number down.
+Keypad traversal, which is still unobserved — every system we reached accepted
+speech, so the agent used speech, and we will not claim a capability we have
+not watched work. Then a Slack action so a ward clerk can ask from where they
+already work, durable stores behind the ledger interfaces, and better probe
+tooling to push that withheld-paraphrase number down. The gate's blind spot for
+facts established by absence is the one we most want to fix properly, and we
+would rather solve it than quietly widen the definition of "verified".
 
 ## Built With
 

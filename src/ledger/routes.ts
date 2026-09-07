@@ -78,8 +78,8 @@ export interface RouteObservation {
    * `soundsAutomated`. Never use it as a hold measurement.
    */
   readonly firstNonSystemTurnAtSeconds: number | null;
-  /** Whether the agent itself did anything to navigate the menu. */
-  readonly agentNavigated: boolean;
+  /** The agent narrated working a keypad. Narrow, and often false on a voice IVR. */
+  readonly usedKeypad: boolean;
   readonly observedAt: number;
 }
 
@@ -109,11 +109,20 @@ function isFragment(text: string): boolean {
 }
 
 /**
- * Phrases the agent uses when it works a menu. Distinguishing "the agent
- * navigated" from "a menu existed" matters: hearing a recording say the word
- * "press" is not evidence that anything was pressed.
+ * Phrases the agent uses when it works a keypad.
+ *
+ * Kept narrow on purpose, and no longer the whole story. A real carrier call
+ * showed the agent navigating an IVR entirely by speech — it said what it
+ * wanted, the system confirmed "you're calling to track a package, right?" and
+ * moved it to that branch — while saying none of these words. Watching only
+ * for keypad language reported "navigated: no" about a call that navigated.
+ *
+ * So `usedKeypad` answers one narrow question honestly. The broader one — did
+ * the agent actually work the tree — is deliberately not answered here. Four
+ * heuristics were tried for it and all four scored a call a success that was
+ * not; the judgement belongs to whoever reads the transcript.
  */
-const NAVIGATION_MARKERS = ["selecting", "pressing", "i'll press", "i will press", "choosing", "entering"];
+const KEYPAD_MARKERS = ["selecting", "pressing", "i'll press", "i will press", "choosing", "entering"];
 
 export function observeRoute(input: {
   readonly subjectId: string;
@@ -124,13 +133,14 @@ export function observeRoute(input: {
   const prompts: string[] = [];
   const steps: string[] = [];
   let firstNonSystemTurnAtSeconds: number | null = null;
-  let agentNavigated = false;
+  let usedKeypad = false;
+
 
   for (const turn of input.turns) {
     if (turn.speaker === "bot") {
       const lower = turn.text.toLowerCase();
-      if (NAVIGATION_MARKERS.some((marker) => lower.includes(marker))) {
-        agentNavigated = true;
+      if (KEYPAD_MARKERS.some((marker) => lower.includes(marker))) {
+        usedKeypad = true;
         steps.push(turn.text);
       }
       continue;
@@ -159,7 +169,7 @@ export function observeRoute(input: {
     prompts,
     callSeconds: offsets.length > 1 ? Math.max(...offsets) - Math.min(...offsets) : null,
     firstNonSystemTurnAtSeconds,
-    agentNavigated,
+    usedKeypad,
     observedAt: input.observedAt ?? Date.now(),
   };
 }
@@ -195,7 +205,7 @@ export class RouteCache {
    */
   public hintFor(subjectId: string): string | null {
     const entry = this.routes.get(subjectId);
-    if (!entry || !entry.agentNavigated || entry.steps.length === 0) return null;
+    if (!entry || !entry.usedKeypad || entry.steps.length === 0) return null;
     return `Last time the menu path was: ${entry.steps.join(" then ")}`;
   }
 

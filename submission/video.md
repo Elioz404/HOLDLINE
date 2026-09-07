@@ -7,8 +7,9 @@ implementation.
 ## Before recording
 
 ```bash
-npm test          # 129 green on screen is worth five seconds of footage
+npm test          # 151 green on screen is worth five seconds of footage
 npm run eval      # have the measured figures ready to show
+npm run replay    # the real call, judged; this is the 1:35 shot
 npm start         # http://127.0.0.1:4173
 ```
 
@@ -16,9 +17,10 @@ Set the browser to a clean window, no bookmarks bar, no other tabs. The
 default batch is the discharge-planning scenario; leave it as it loads. The console
 adapts to the system theme; dark reads better on video.
 
-If a CALL-E account exists by recording day, run the traversal probe first and
-put the real call in at 1:40. If it does not, say so out loud once — see
-Honesty below. Do not quietly imply a simulated run was real.
+The account exists and three real calls have been placed, so there is real
+footage to show — see 1:35. The console itself is still simulated and labels
+itself so on screen; say that out loud once rather than letting a viewer catch
+it. See Honesty below.
 
 ## Shot list
 
@@ -122,21 +124,50 @@ Screen: back to the cards, the verified one and the withheld one together.
 
 Say this once, plainly, around 1:35 — not in small print:
 
-> "Everything you have seen runs against a local simulator that reproduces
-> CALL-E's documented behaviour. No account has been provisioned to us yet."
+> "The console you just saw runs against a local simulator. We did place three
+> real calls, and they're in the repo — they're how we found out two things we'd
+> documented were wrong."
 
 Reasons to keep it in rather than trim for time:
 
 - The console labels every simulated response `simulated: true` on screen. A
   viewer will see it. Saying it first is better than being caught by it.
-- It is verifiable — the blocker is public in the CALL-E Discord.
-- The judging criteria reward a working, non-trivial implementation. The
-  implementation is real; only the telephone is absent, and that is not ours to
-  fix.
+- The real calls are the stronger half of that sentence. They confirmed CALL-E
+  navigates a real IVR, and they broke two of our own assumptions — that is a
+  better story than a clean run.
+- Do not claim keypad traversal. The systems reached accepted speech and the
+  agent used speech. Say "it navigated a real phone tree" and stop there.
 
-If a real call happens before recording: put it at 1:35 instead, show the call
-id and the transcript quote, and keep the sentence about the rest being
-simulated.
+The twenty seconds of real footage is `npm run replay`, and it is the strongest
+shot in the video because nothing about it is staged:
+
+```
+  37 turns  ·  2 fields  ·  no call placed
+
+  What the call reported
+    department_confirmed     "yes"
+    reached_human            "no"
+    (confidence)             0.9
+
+  What the transcript supports
+    department_confirmed     verified
+                             "I'm calling to reach the package tracking option..."
+    reached_human            unattributed
+
+  What a caller is given
+    department_confirmed     "yes"
+    reached_human            null   (withheld)
+```
+
+> "That is a real call to a real phone tree. It came back at nine-tenths
+> confidence. One field is verified, and there is the sentence that established
+> it. The other is withheld."
+
+Then, if there is time, the honest half — it is worth more than it costs:
+
+> "And the withheld one was *right*. Nobody human came on the line. But nothing
+> was asked that could establish that, so we don't get to claim it. We'd rather
+> hand back a gap than a fact we can't point at."
 
 ## What not to do
 

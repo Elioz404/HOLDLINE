@@ -167,7 +167,7 @@ describe("route cache", () => {
       "Selecting account services.",
       "Selecting existing customers.",
     ]);
-    expect(observation?.agentNavigated).toBe(true);
+    expect(observation?.usedKeypad).toBe(true);
     expect(observation?.firstNonSystemTurnAtSeconds).toBe(208);
     // Bot turns after the human answered are conversation, not routing.
     expect(observation?.steps).not.toContain("Hello, I am an automated assistant.");
@@ -196,8 +196,9 @@ describe("route cache", () => {
     expect(observation?.prompts.length).toBeGreaterThan(0);
     // Nobody answered. The old rule said ten seconds.
     expect(observation?.firstNonSystemTurnAtSeconds).toBeNull();
-    // And the agent never worked the menu, so there is no route to reuse.
-    expect(observation?.agentNavigated).toBe(false);
+    // It spoke after prompts — that is observable — but it never touched a
+    // keypad, so there is no route worth reusing.
+    expect(observation?.usedKeypad).toBe(false);
   });
 
   it("offers no hint from a call where the agent never navigated", () => {

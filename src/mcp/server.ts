@@ -18,8 +18,8 @@
  * instead of the network. Every response then carries `simulated: true` and a
  * one-line notice, so a simulated result cannot be mistaken for a real call —
  * not in a transcript, not in a screen recording, not in a log. This exists so
- * the tools can be exercised and reviewed without credentials, which is the
- * state this project is currently in.
+ * the tools can be exercised and reviewed without credentials, and without
+ * ringing a stranger's telephone to demonstrate a tool call.
  *
  * Every phone number leaving this server is masked.
  */

@@ -51,7 +51,7 @@ matter how confident the model sounded.
 | Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
 | Evaluation harness | `src/eval/` | Measures the gate against a seeded, labelled corpus — including cases it is expected to get wrong. |
 | Freshness ledger | `src/ledger/facts.ts` | Stores verified facts with the moment and the sentence that established them, and serves them until a per-field TTL expires. |
-| Route cache | `src/ledger/routes.ts` | Reads the menu path and the time-to-human out of a transcript, and turns it into a hint for the next call. |
+| Route cache | `src/ledger/routes.ts` | Reads the menu prompts, any keypad steps and the call duration out of a transcript, and turns a keypad route into a hint for the next call. |
 | Webhook receiver | `src/engine/webhook.ts` | Treats an unsigned delivery as a signal to re-fetch the call, never as a source of truth. |
 | Console | `src/console/` | An operations view over the same engine: plan a batch, watch each call work through the menu and the queue in call-time, read each verdict with the sentence that established it. |
 | MCP server | `src/mcp/server.ts` | Exposes `plan_hold`, `run_hold` and `get_verdict` over stdio. Only one of the three can dial, and only on explicit confirmation. |
@@ -62,6 +62,7 @@ matter how confident the model sounded.
 | Phone handling | `src/core/phone.ts` | Strict E.164 validation, placeholder and emergency-line refusal, masking. |
 | Output redaction | `src/core/redact.ts` | Masks phone numbers and strips secrets from every outgoing value, including echoed metadata and error payloads. |
 | Traversal probe | `src/probe/validate-traversal.ts` | Places one real call to find out whether CALL-E gets through a phone menu, and writes the run down. |
+| Replay | `src/tools/replay.ts` | Puts a call that already happened back through the gate, so a transcript can be re-judged with better probes without dialing anyone again. |
 
 ### The Evidence Gate
 
@@ -252,8 +253,9 @@ network.
 **Simulation mode.** With `HOLDLINE_SIMULATE=1` the server runs against the
 fake transport, and every response carries `simulated: true` and a notice
 saying no telephone was involved. It exists so the tools can be exercised and
-reviewed without an account, which is the state this project is currently in.
-Simulated output is a rehearsal, never a finding.
+reviewed without an account, and so that demonstrating a tool call never means
+ringing a stranger's telephone. Simulated output is a rehearsal, never a
+finding.
 
 ### The freshness ledger
 
@@ -285,24 +287,44 @@ call.
 
 ### The route cache
 
-`observeRoute()` reads a transcript and extracts the menu prompts, the steps
-the agent took through them, and the offset at which a person first spoke.
-`hintFor()` turns that into a short instruction for the next call's task. It is
-meant to be passed as the queue's `routingHint`, which `planQueue` declares
-`"high"` rather than `"required"`, so it is the first thing dropped when the
-goal needs the 255 characters.
+`observeRoute()` reads a transcript and extracts the menu prompts, any keypad
+steps the agent narrated, and how long the call ran. `hintFor()` turns a keypad
+route into a short instruction for the next call, passed as the queue's
+`routingHint` — which `planQueue` declares `"high"` rather than `"required"`,
+so it is the first thing dropped when the goal needs the 255 characters. A call
+where the agent never touched a key produces no hint: knowing a menu exists is
+not knowing the way through it.
 
-`totalHoldSeconds()` sums the time-to-human across cached routes. That is the
-figure this project exists to move: seconds a machine spent in a queue instead
-of a person.
+`totalSecondsOnCall()` sums call duration across cached routes. That is the
+figure worth reporting, and the only one here that is measured rather than
+inferred — every second of it is a second a person did not spend on the
+telephone, whether or not anyone ever picked up.
 
-**An assumption, stated because it is load-bearing.** CALL-E labels transcript
-turns `bot`, `user`, or `unknown`. This module reads `unknown` turns as system
-audio and the first `user` turn as a person answering. That is an inference
-from the labels, not a documented guarantee; if CALL-E ever labels a human
-`unknown` on some route, the hold figure for that route is wrong.
-`observeRoute()` returns `null` when no menu language appears at all, rather
-than inventing a route that would mislead the next caller.
+**Two corrections a real call forced.** This section previously described
+identifying the other party by CALL-E's speaker labels: `unknown` for system
+audio, the first `user` turn for a person. On a real call there was no
+`unknown` speaker at all, and the automated system was labelled `user`
+throughout. Under that rule the call reported a person answering at ten
+seconds, on a line where nobody ever picked up.
+
+It also previously reported "time to human". That cannot be computed honestly
+from a transcript: a modern voice IVR is written to sound like a person — the
+sample call's system said *"in a few words, please tell me how I can help
+you"* — and no amount of phrase matching separates that from a receptionist.
+`firstNonSystemTurnAtSeconds` survives as a labelled *candidate*, never as a
+measurement, and the headline number moved to call duration, which needs no
+such judgement.
+
+Whether the agent *worked* a tree is not decided here either. Four heuristics
+were written for it and all four scored a call a success that was not — the
+last one passed a call where the agent said "Okay" twenty-six times to a
+looping announcement. The tool reports what it can see and leaves the
+judgement to whoever reads the transcript.
+
+`fixtures/saved-call-usps-after-hours.json` holds an excerpt of that call. It is
+kept as evidence for the paragraphs above, not as test input; the fixture the
+tests actually run against is `saved-call-fedex-tracking.json`, judged in
+`test/saved-call.test.ts`.
 
 ### Webhooks are a doorbell, not a document
 
@@ -376,11 +398,24 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 138 tests, no network, no credentials
+npm test          # 151 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
+npm run replay    # judges a real saved call; no network, no key, no call
 npm run screenshots  # re-capture docs/screenshots from the live console
 ```
+
+`npm run replay` with no arguments reads
+`fixtures/saved-call-fedex-tracking.json` — an actual CALL-E call, masked — and
+prints what the call reported beside what its transcript supports. Point it at
+any saved call and give it your own probes:
+
+```bash
+npm run replay -- --call probe-output/run.masked.json                   --field in_stock="in stock,have any,availability"
+```
+
+Re-judging a finished call is the cheapest way to improve probes: the first set
+always misses something, and the alternative is dialing the same place twice.
 
 The traversal probe is dry by default:
 
@@ -434,12 +469,43 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**No live call has been placed.** Every scenario in the fake transport and
-`fixtures/traversal-with-menu.json` is synthetic and labelled as such. They
-model behaviour reported in CALL-E's public issue tracker; they are not
-observations of this project's own calls, and nothing here should be read as a
-measurement of how CALL-E performs against a real phone menu. That question is
-what `src/probe/validate-traversal.ts` exists to answer, and it is unanswered.
+**Three live calls have been placed**, on 2026-09-07, to published automated
+customer-service lines. They cost more than they gave and were worth every one:
+
+- CALL-E reached and transcribed real phone trees, 37 and 67 turns, with timings.
+- On one, the agent stated its purpose, the IVR confirmed it — *"you're calling
+  to track a package, right?"* — and moved it to that branch. Navigation by
+  speech, not keypad. **DTMF was offered by the system and never used by the
+  agent**, so keypad traversal remains unobserved.
+- Those calls disproved two things this repository had documented as true: the
+  speaker-label assumption in the route cache, and the probe's own traversal
+  verdict. Both are corrected.
+
+**The gate has been run over one of them.** `fixtures/saved-call-fedex-tracking.json`
+holds that call whole and masked — 37 turns of real speech, plus the structured
+result CALL-E returned for it — and `test/saved-call.test.ts` judges it:
+
+| | |
+| --- | --- |
+| CALL-E's summary | candid: the system would not continue without a tracking number |
+| `taskCompleted` | `true`, confidence 0.9 |
+| `department_confirmed` | **verified**, quoting a turn genuinely spoken on the call |
+| `reached_human: "no"` | **withheld** — and it was correct |
+
+The last row is the interesting one. Nobody human came on the line, so `"no"`
+was true; but nothing was *asked* that the value answers, because the truth
+sits in what did not happen. This design cannot credit a fact established by
+absence. That is a boundary of the approach rather than a bug to tune away, it
+is written down in `skills/holdline/references/safety.md`, and the test pins it
+so the claim cannot quietly stop being true. Withholding a correct answer is
+the price of never storing an unsupported one.
+
+`fixtures/saved-call-usps-after-hours.json` keeps an excerpt of the other call,
+which is where the speaker-label correction came from.
+
+Everything else — the console, the evaluation corpus, the fake transport — is
+still synthetic and labelled as such. No figure in this README is a measurement
+of CALL-E's live performance.
 
 ## License
 

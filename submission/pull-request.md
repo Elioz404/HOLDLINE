@@ -26,13 +26,14 @@ supported by anything that was said. A schema check passes that. Nothing in the
 response distinguishes *asked and not understood* from *never asked at all*.
 
 This skill checks every returned field against the transcript turns the agent
-spoke, and reports five verdicts rather than a boolean:
+spoke, and reports six verdicts rather than a boolean:
 
 | Verdict | Meaning |
 | --- | --- |
 | `verified` | The agent raised the topic and a usable answer came back. |
 | `asked_but_unclear` | The agent asked; the answer was not usable. |
 | `unattributed` | Some question was asked and answered, but no probe for this field matches it. |
+| `attributed` | No probe matched, but one question and one field were left over, so by elimination it can only be this. Off by default. |
 | `never_asked` | Nothing was asked that this value could answer. A value present here is flagged. |
 | `no_transcript` | No transcript, so nothing could be checked. |
 
@@ -128,7 +129,7 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 100 tests with no network and no credentials,
+The engine repository's suite is 151 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire
@@ -136,8 +137,39 @@ contract.
 
 ## Note on live calls
 
-No live call has been placed. Account provisioning for new users is currently
-blocked — the login page offers no sign-up path and several hackathon
-participants have reported the same — so every figure above comes from offline
-fixtures and a seeded corpus, and is labelled as such in the repository. None
-of it should be read as a measurement of CALL-E's live behaviour.
+Three live calls were placed on 2026-09-07 to published automated
+customer-service lines, and they are worth mentioning because of what they
+broke rather than what they proved.
+
+They confirmed CALL-E reaches and transcribes real phone trees, and that an
+agent can state a purpose and have an IVR confirm and route it. They also
+disproved two things this project had written down as true: that CALL-E labels
+system audio `unknown` (it does not — the automated system came back as `user`,
+which made a hold metric meaningless), and that the probe's traversal check
+meant anything (it matched the word "press" in a recording's own greeting).
+Both are fixed.
+
+One call is kept whole, masked, as `fixtures/saved-call-fedex-tracking.json`,
+and `test/saved-call.test.ts` runs the gate over it. The result is not a
+gotcha, and is more useful than one:
+
+- CALL-E's own summary of the call is candid — it says the system would not
+  continue without a tracking number, which is exactly what happened.
+- Alongside it, `taskCompleted` is `true` at 0.9 confidence.
+- The gate verifies `department_confirmed` and quotes the turn that
+  established it, a line genuinely spoken on the call.
+- It withholds `reached_human: "no"`, which was **correct**. Nobody human came
+  on the line. Nothing was asked that the value answers; the truth sits in what
+  did not happen, and this design cannot credit that.
+
+That last point is a real boundary of the approach, not a defect to be tuned
+away, and it is documented as one in `references/safety.md` and pinned by a
+test so the claim cannot quietly stop being true. Withholding a correct answer
+is the cost of never storing an unsupported one.
+
+Keypad traversal is still unobserved: the systems reached accepted speech and
+the agent used it.
+
+Everything else in this submission — the evaluation corpus, the console
+scenarios, the fake transport — is synthetic and labelled as such. No figure
+here is a measurement of CALL-E's live performance.

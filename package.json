@@ -18,7 +18,9 @@
     "mcp": "tsx --env-file-if-exists=.env src/mcp/run.ts",
     "console": "tsx --env-file-if-exists=.env src/console/run.ts",
     "start": "tsx --env-file-if-exists=.env src/console/run.ts",
-    "screenshots": "tsx src/tools/screenshots.ts"
+    "screenshots": "tsx src/tools/screenshots.ts",
+    "demo": "tsx src/tools/demo.ts",
+    "replay": "tsx src/tools/replay.ts"
   },
   "dependencies": {
     "@call-e/calle": "^0.7.0",

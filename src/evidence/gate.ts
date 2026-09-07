@@ -257,6 +257,14 @@ export function runEvidenceGate(input: GateInput): GateReport {
     reasons.push(`Required field \`${field.field}\`: ${field.verdict}.`);
   }
 
+  // "Verified" has to mean something was established, not that nothing was
+  // demanded. With every field optional the loop above adds no reasons and the
+  // call passes having confirmed precisely nothing — vacuous truth wearing the
+  // word that is supposed to carry the most weight here.
+  if (fields.length > 0 && !fields.some((field) => field.verdict === "verified")) {
+    reasons.push("No field was established by the call.");
+  }
+
   const score = input.completionConfidence?.score ?? null;
   if (score === null) {
     reasons.push("No completion confidence was reported.");
