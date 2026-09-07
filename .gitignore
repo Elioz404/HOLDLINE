@@ -6,3 +6,9 @@ dist/
 
 # Probe output can contain unmasked transcripts from real calls. Never commit it.
 probe-output/
+
+# Intermediate screencast. The encoded mp4 beside it is the deliverable.
+docs/video/holdline-raw.webm
+docs/video/holdline-silent.mp4
+docs/video/narration.wav
+docs/video/audio/

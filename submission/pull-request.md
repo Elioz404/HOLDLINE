@@ -62,9 +62,9 @@ should not be stored as fact. Better probes are the only thing that moves it;
 `references/probes.md` explains the trade.
 
 The full engine — parallel dispatch, freshness ledger, route cache, webhook
-intake, and the MCP server — lives at
-https://github.com/Elioz404/HOLDLINE and is listed as an app entry. The skill
-here is self-contained and portable.
+intake, and the MCP server — lives at https://github.com/Elioz404/HOLDLINE.
+This PR is scoped to the skill and its one list entry; the skill is
+self-contained and portable, and needs nothing from that repository to run.
 
 ## Type
 
@@ -139,8 +139,8 @@ contract.
 
 ## Note on live calls
 
-Six live calls were placed on 2026-09-07 to published automated
-customer-service lines, and they are worth reporting because of what they broke
+Seven live calls, across six dispatches, were placed on 2026-09-07 to
+published automated customer-service lines, and they are worth reporting because of what they broke
 rather than what they proved.
 
 They confirmed CALL-E reaches and transcribes real phone trees, and that an

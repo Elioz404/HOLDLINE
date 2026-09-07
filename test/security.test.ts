@@ -136,15 +136,18 @@ describe("the README does not promise images it lacks", () => {
     }
   });
 
-  it("the screenshot tool still points at selectors the page has", () => {
-    // If the console is restructured and these ids disappear, the capture
-    // script fails with a clear message instead of silently framing the
-    // wrong thing. This catches it before anyone runs it.
-    const tool = readFileSync(join(ROOT, "src/tools/screenshots.ts"), "utf8");
+  it("the capture tools still point at selectors the page has", () => {
+    // If the console is restructured and these ids disappear, the gallery and
+    // the recorder would frame the wrong thing silently — a caption over a
+    // screen that does not show what it describes. This catches it before
+    // anyone runs them.
     const page = readFileSync(join(ROOT, "src/console/index.html"), "utf8");
-    for (const id of ["planout", "board", "outcome"]) {
-      expect(tool, `screenshot tool should frame #${id}`).toContain(`#${id}`);
-      expect(page, `page should still define #${id}`).toContain(id);
+    for (const tool of ["src/tools/gallery.ts", "src/tools/video.ts"]) {
+      const source = readFileSync(join(ROOT, tool), "utf8");
+      for (const id of ["planout", "board", "cards", "summary"]) {
+        expect(source, `${tool} should reference #${id}`).toContain(id);
+        expect(page, `page should still define #${id}`).toContain(id);
+      }
     }
   });
 });

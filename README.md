@@ -11,12 +11,12 @@ HOLDLINE asks all of them at once, and returns **only the answers the call
 actually established.** A field the conversation never covered comes back
 empty, with the reason, instead of coming back wrong.
 
-<img src="docs/screenshots/verdicts.png" alt="Three care homes from one dispatch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
+<img src="docs/screenshots/01-answers-established-and-withheld.png" alt="Three care homes from one dispatch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
 
 *One dispatch, three care homes. Two answers established by the call; one
 withheld, with the reason.*
 
-<img src="docs/screenshots/holding.png" alt="Three care homes on hold at once, each row showing the call clock at 1:02 and on hold for 48 seconds" width="860">
+<img src="docs/screenshots/05-on-the-line.png" alt="Three care homes on the line at once, each row showing the call clock past two minutes" width="860">
 
 *The wait, which is the point. Three queues at once, on the call'''s own clock.*
 
@@ -413,7 +413,7 @@ npm test          # 161 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 npm run replay    # judges a real saved call; no network, no key, no call
-npm run screenshots  # re-capture docs/screenshots from the live console
+npm run gallery   # re-capture docs/screenshots from the live console
 ```
 
 `npm run replay` with no arguments reads
@@ -480,8 +480,8 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**Six live calls have been placed**, on 2026-09-07, to published automated
-customer-service lines. They cost more than they gave and were worth every one:
+**Seven live calls have been placed**, across six dispatches, on 2026-09-07,
+to published automated customer-service lines. They cost more than they gave and were worth every one:
 
 - CALL-E reached and transcribed real phone trees, up to 67 turns, with timings.
 - They disproved two things this repository had documented as true: the

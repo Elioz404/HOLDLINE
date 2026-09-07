@@ -156,7 +156,7 @@ share the budget. We compile the task from prioritised segments and drop the
 lowest first — and fail loudly rather than truncate a required instruction and
 ship a call that asks half a question.
 
-**Six real calls broke things I had written down as true.** By the time an
+**Seven real calls broke things I had written down as true.** By the time an
 account existed the whole engine was built against the local fake, so the calls
 were a test of my assumptions as much as of the platform.
 
@@ -270,7 +270,7 @@ we built is that distinction, in one form or another.
 Pressing keys. We now know exactly why it matters: a real carrier line stopped
 accepting speech mid-call, demanded *"[keypad demand]"*, and
 hung up on an agent that had only a voice. That is the single clearest thing
-six live calls taught us about where this breaks.
+seven live calls taught us about where this breaks.
 
 Then a Slack action so a ward clerk can ask from where they already work,
 durable stores behind the ledger interfaces, and better probe tooling to push

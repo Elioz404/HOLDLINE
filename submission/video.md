@@ -1,192 +1,90 @@
 # Demo video
 
-Hard limit: **under 3 minutes**, public on YouTube or Vimeo. It is one of four
-equally weighted judging criteria, so it is worth as much as the entire
-implementation.
+**Recorded. `docs/video/holdline.mp4` — 2:42, 1920×1080, H.264, narrated,
+with `holdline.srt` beside it.**
 
-## Before recording
+The rules cap it at three minutes and require it publicly visible on YouTube or
+Vimeo. It is one of four equally weighted criteria, so it is worth as much as
+the entire implementation.
+
+## How it was made
 
 ```bash
-npm test          # 151 green on screen is worth five seconds of footage
-npm run eval      # have the measured figures ready to show
-npm run replay    # the real call, judged; this is the 1:35 shot
-npm start         # http://127.0.0.1:4173
+npm run narrate    # speaks the script, measures every line
+npm run video      # drives Chrome, holding each caption for its line of audio
+npm run mixdown    # encodes, lays the voice under it, writes the subtitles
 ```
 
-Set the browser to a clean window, no bookmarks bar, no other tabs. The
-default batch is the discharge-planning scenario; leave it as it loads. The console
-adapts to the system theme; dark reads better on video.
+`src/tools/script.ts` holds the narration once. The video, the voice and the
+subtitles are all generated from it, so they cannot disagree — editing a line
+there changes all three.
 
-The account exists and six real calls have been placed, so there is real
-footage to show — see 1:35. The console itself is still simulated and labels
-itself so on screen; say that out loud once rather than letting a viewer catch
-it. See Honesty below.
+**The picture is cut to the voice, not the other way round.** `npm run narrate`
+renders each line with Microsoft Edge's `en-US-AndrewNeural` and measures it;
+the recorder then holds every caption for exactly that long and writes down the
+wall-clock offset where it appeared. `npm run mixdown` places each line of
+audio at that offset and writes the srt from the same numbers.
 
-## Shot list
+Measured on the finished file, all 21 lines land within 0.03s of their caption,
+after a constant 0.17s of lead-in silence. Nothing was nudged by hand — there
+is no waveform to nudge.
 
-### 0:00 – 0:18 · The problem, stated once
+Captions are drawn into the page rather than burned in afterwards, so there is
+no subtitle filter in the chain and the type is under our control.
 
-Screen: the console at rest, four care homes listed, nothing run yet.
+The terminal segments are not mock-ups. `docs/video/out-replay.txt` and
+`out-eval.txt` are captured from real runs of `npm run replay` and
+`npm run eval` immediately before recording, and are printed verbatim on
+screen.
 
-> "A patient is medically ready to leave hospital and can't, because nobody has
-> confirmed a bed. So a coordinator rings eight care homes, one at a time,
-> through eight phone menus."
->
-> "This one came back saying it can take the patient. High confidence. Valid
-> against the schema. The agent never asked."
+## What is on screen, in order
 
-### 0:18 – 0:45 · Plan
+Timings are read from `docs/video/timing.json`, which the recorder wrote.
 
-Screen: click **Plan**. Point at three things and nothing else.
+| | |
+| --- | --- |
+| 0:00 | The problem, over the console at rest. |
+| 0:21 | **Plan** — the task compiled into 255 characters, the malformed fourth number refused before dialing, the idempotency key derived from the batch record. |
+| 0:50 | **On the line** — three homes at once, `HOLDING`, the call's own clock climbing past a minute. |
+| 1:07 | **The verdicts** — one home verified with the sentence that established it, one withheld with the reason. |
+| 1:35 | **A real call** — `npm run replay` over `fixtures/saved-call-fedex-tracking.json`: one field verified quoting a genuinely spoken line, one withheld, and the withheld one was correct. |
+| 1:59 | **The call that caught us** — the live call that came back `verified` on a value stating nothing was established, and what was wrong underneath it. |
+| 2:21 | **The numbers** — `npm run eval`, both the catch rate and its cost. |
 
-> "Two questions, four homes, one dispatch. HOLDLINE compiles it into the 255
-> characters the API allows and shows you exactly what will be said."
+## Honesty, which is on screen and not in small print
 
-Point at the character meter, then the refused row.
+The console segment runs against the local simulator. It says `SIMULATION` in
+the header throughout, and the narration says so out loud at 1:00: *"This
+console runs against a local simulator, and labels itself so. The real calls
+come next."*
 
-> "The last number has a space in it. It is refused before anything dials, not
-> halfway through the batch."
+Everything after 1:35 is real: real transcripts from real CALL-E calls,
+judged on camera. No figure shown is a measurement of CALL-E's live
+performance.
 
-Then the idempotency key.
+The keypad is not claimed. A real carrier line stopped accepting speech, demanded
+*"[keypad demand]"*, and hung up on an agent that had only a
+voice — that is a limit, and the video does not pretend otherwise.
 
-> "The key comes from the batch record, never from the clock. Running this again
-> fetches the call that already happened instead of ringing anyone twice."
+## Audio and subtitles
 
-### 0:45 – 1:15 · The wait, which is the whole point
+Narrated with Microsoft Edge's `en-US-AndrewNeural` neural voice, generated by
+`edge-tts` through `uvx` — nothing is installed permanently and no API key is
+involved. The voice reads the on-screen captions word for word.
 
-Screen: tick the confirmation, click **Place calls**. Now say nothing for five
-seconds and let the board run.
+`docs/video/holdline.srt` carries the same 21 lines with the offsets the
+recorder measured. Upload it as YouTube's caption track; the burned-in captions
+stay regardless, so the video reads with the sound off.
 
-```
-Oakfield Care Home    holding   0:30   on hold for 16s
-Riverside Nursing     holding   0:46   on hold for 32s
-Belmont House         holding   1:26   on hold for 72s
-```
-
-> "Three homes, one dispatch, all three sitting in the queue at once. That
-> clock is the call's own clock. Nobody is listening to this."
-
-Let it reach `2:12 · a person answered` before speaking again. **Do not cut
-this short.** The climbing clock is the product.
-
-### 1:15 – 1:35 · The moment
-
-> "Three reached, the fourth refused before dialing. Different answers."
-
-Point at Oakfield, green.
-
-> "Verified. And here is the sentence that established it — the actual turn the
-> agent spoke."
-
-Point at Riverside, red.
-
-> "Same batch. The nursing level came back populated and confident. But no
-> question in that call could have produced it. So it does not come back.
-> It is withheld, with the reason."
->
-> "That's a patient who doesn't get moved tomorrow on an answer nobody gave."
-
-Pause on the withheld field for a full beat. **This is the shot the whole
-submission rests on. Do not rush it.**
-
-### 1:35 – 2:05 · Why it is not a trick
-
-Screen: cut to the terminal, `npm run eval`.
-
-> "CALL-E's own issue tracker records this: a call that skipped a question and
-> returned a value anyway, with nothing in the response to tell the difference.
-> So we measured it. Four hundred labelled cases, offline."
-
-Point at the numbers as they read.
-
-> "Every invented value caught. And zero false accusations — a question asked in
-> different words is withheld, not called a lie. That last line is the cost, and
-> we publish it."
-
-### 2:05 – 2:35 · It is a primitive, not an app
-
-Screen: the MCP tool list, or the SKILL.md.
-
-> "It is an MCP server too, so any agent gets three tools. Two of them can't
-> dial. The one that can has to be told, in the same request, that dialing is
-> what you meant. An agent can't reach a telephone by accident."
-
-Optional if time: `HOLDLINE_SIMULATE=1 npm run mcp`.
-
-### 2:35 – 2:55 · Close
-
-Screen: back to the cards, the verified one and the withheld one together.
-
-> "A phone agent that always answers is easy. One that tells you when it
-> doesn't know is the one you can actually deploy."
-
-## Honesty
-
-Say this once, plainly, around 1:35 — not in small print:
-
-> "The console you just saw runs against a local simulator. We did place three
-> real calls, and they're in the repo — they're how we found out two things we'd
-> documented were wrong."
-
-Reasons to keep it in rather than trim for time:
-
-- The console labels every simulated response `simulated: true` on screen. A
-  viewer will see it. Saying it first is better than being caught by it.
-- The real calls are the stronger half of that sentence. They confirmed CALL-E
-  navigates a real IVR, and they broke two of our own assumptions — that is a
-  better story than a clean run.
-- Do not claim keypad traversal. Say the opposite, because the opposite is the
-  better line: on the last call carrier stopped accepting speech, demanded
-  *"[keypad demand]"*, and hung up on an agent that only had a
-  voice. That is a limit we watched happen and it belongs in the video.
-
-The twenty seconds of real footage is `npm run replay`, and it is the strongest
-shot in the video because nothing about it is staged:
-
-```
-  37 turns  ·  2 fields  ·  no call placed
-
-  What the call reported
-    department_confirmed     "yes"
-    reached_human            "no"
-    (confidence)             0.9
-
-  What the transcript supports
-    department_confirmed     verified
-                             "I'm calling to reach the package tracking option..."
-    reached_human            unattributed
-
-  What a caller is given
-    department_confirmed     "yes"
-    reached_human            null   (withheld)
-```
-
-> "That is a real call to a real phone tree. It came back at nine-tenths
-> confidence. One field is verified, and there is the sentence that established
-> it. The other is withheld."
-
-Then, if there is time, the honest half — it is worth more than it costs:
-
-> "And the withheld one was *right*. Nobody human came on the line. But nothing
-> was asked that could establish that, so we don't get to claim it. We'd rather
-> hand back a gap than a fact we can't point at."
-
-## What not to do
-
-- No slides, no logo animation, no music bed. Three minutes is short.
-- Do not read the README aloud. Show the product doing the thing.
-- Do not show a raw phone number. Everything on screen is masked already —
-  keep it that way, including the input textarea if you zoom in.
-- The board replays the call clock at 25× and says so on screen. Do not imply
-  it is real time.
-- Do not claim seconds saved as a measured result. `seconds on the phone` on
-  the stat strip comes from simulated transcripts. Say "this is what it would
-  count" or leave the strip out of frame.
-- Do not speed the video up to fit. Cut a section instead.
+HeyGen was asked for and is not installed on this machine — it is a hosted
+service needing an account and an API key, not a local binary. Windows' own
+`David` and `Zira` voices are installed but are the old desktop ones and would
+have sounded worse than silence. `edge-tts` was used instead: neural quality,
+local output, reproducible from one command.
 
 ## Publishing
 
-- Public, not unlisted-only — the rules say publicly visible.
+- **Public**, not unlisted — the rules say publicly visible.
 - Title: `HOLDLINE — phone answers you can actually trust`
-- Description: link the repository and the pull request, and repeat the
-  simulation note in the first two lines.
+- Description: link the repository and the pull request, and say in the first
+  two lines that the console segment is simulated and the transcripts are real.

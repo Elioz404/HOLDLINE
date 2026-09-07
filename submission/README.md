@@ -85,11 +85,14 @@ complete the survey linked from the rules.
 The Apps entry links to it. A link a reviewer cannot open is worse than no
 entry at all.
 
-Screenshots are handled: `npm run screenshots` drives a real Chrome against
-the console and writes `docs/screenshots/`. It waits for the states worth
-showing rather than sleeping, refuses to save anything if an unmasked number is
-visible, and is already wired into the README. Re-run it whenever the interface
-changes.
+Screenshots are handled: `npm run gallery` drives a real Chrome against the
+console and writes `docs/screenshots/` — nine 1920×1080 images, numbered in
+Devpost upload order, each carrying its own caption so it stands alone in a
+carousel. The terminal shots print output captured from real runs, not
+mock-ups. Re-run it whenever the interface changes.
+
+The video is handled too: `npm run narrate`, `npm run video`, `npm run mixdown`
+produce `docs/video/holdline.mp4` (2:42, narrated) and `holdline.srt`.
 
 ## Open blocker
 
