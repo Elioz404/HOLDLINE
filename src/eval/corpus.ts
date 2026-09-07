@@ -22,7 +22,9 @@ export type CaseKind =
   | "asked_direct_unclear"
   | "not_asked_value_returned"
   | "not_asked_no_value"
-  | "asked_paraphrase_answered";
+  | "asked_paraphrase_answered"
+  | "asked_prose_answered"
+  | "asked_prose_non_answer";
 
 export interface EvalCase {
   readonly id: string;
@@ -139,6 +141,58 @@ const GREETING: CallTranscriptTurn[] = [
   },
 ];
 
+/**
+ * Free-text values, which the first version of this corpus did not contain at
+ * all — and that omission is why a real call had to find the hole.
+ *
+ * When a result field's answer is prose rather than an enumerated token, a
+ * model can report *not having found out* in unbounded language. A lexical
+ * check against a short list of sentinels like `"unknown"` cannot see that. A
+ * live call to carrier returned, in full:
+ *
+ *   "[nothing established]; the call remained in carrier's automated
+ *    automated menu and ended before explaining what a documented topic is or where
+ *    the tracking number appears."
+ *
+ * The gate called that `verified`. It is the exact failure this project was
+ * built to catch, committed by this project, and it went unmeasured because
+ * every value in this corpus used to be one word long.
+ *
+ * Both directions are represented below, because a fix that only catches the
+ * non-answers is untested until it is shown not to eat the real ones.
+ */
+const PROSE_NON_ANSWERS: readonly string[] = [
+  "No answer was provided; the call remained in the automated menu and ended before the question was addressed.",
+  "The information could not be obtained. The system repeated its prompt and then disconnected.",
+  "Not determined — the line asked for a keypad selection and the call ended without an answer.",
+  "[nothing established].",
+];
+
+const PROSE_ANSWERS: Record<string, readonly string[]> = {
+  accepts_new_patients: [
+    "The practice is currently accepting new patients for general visits.",
+    "They confirmed their list is open and new patients can book.",
+  ],
+  reference_status: [
+    "Reference 88431 is still under review and has not moved since last week.",
+    "They confirmed 88431 remains in review.",
+  ],
+  part_in_stock: [
+    "Two units are on the shelf and available today.",
+    "They confirmed the part is in stock and can ship.",
+  ],
+  reached_department: [
+    "This is the account services department.",
+    "They confirmed the line handles existing customer files.",
+  ],
+};
+
+/** What a system says when it will not answer: a prompt, repeated, then nothing. */
+const STONEWALL: readonly string[] = [
+  "Sorry. If you're calling about this, say yes or press 1. If not, say no or press 2.",
+  "Sorry, I still didn't get that. [keypad demand].",
+];
+
 const FAREWELL: CallTranscriptTurn = {
   offset_seconds: 40,
   speaker: "bot",
@@ -154,6 +208,8 @@ const KINDS: readonly CaseKind[] = [
   "not_asked_value_returned",
   "not_asked_no_value",
   "asked_paraphrase_answered",
+  "asked_prose_answered",
+  "asked_prose_non_answer",
 ];
 
 function buildCase(id: string, kind: CaseKind, template: FieldTemplate, rand: () => number): EvalCase {
@@ -196,6 +252,27 @@ function buildCase(id: string, kind: CaseKind, template: FieldTemplate, rand: ()
       trulyAsked = true;
       trulyAnswered = true;
       value = template.value;
+      break;
+
+    case "asked_prose_answered":
+      // Asked, genuinely answered, and the model reports it as prose rather
+      // than a token. This is the case a heuristic must not eat.
+      turns.push({ offset_seconds: 12, speaker: "bot", text: pick(template.directAsks, rand) });
+      turns.push({ offset_seconds: 18, speaker: "user", text: pick(template.answers, rand) });
+      trulyAsked = true;
+      trulyAnswered = true;
+      value = pick(PROSE_ANSWERS[template.field] ?? [template.value], rand);
+      break;
+
+    case "asked_prose_non_answer":
+      // Asked, stonewalled, and the model says so honestly in prose. Ground
+      // truth: nothing was answered. The gate used to call this verified.
+      turns.push({ offset_seconds: 12, speaker: "bot", text: pick(template.directAsks, rand) });
+      turns.push({ offset_seconds: 18, speaker: "user", text: pick(STONEWALL, rand) });
+      turns.push({ offset_seconds: 26, speaker: "user", text: pick(STONEWALL, rand) });
+      trulyAsked = true;
+      trulyAnswered = false;
+      value = pick(PROSE_NON_ANSWERS, rand);
       break;
   }
 

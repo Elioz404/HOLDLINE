@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { gatedResult, runEvidenceGate } from "../src/evidence/gate.js";
 import { runEvaluation } from "../src/eval/harness.js";
+import { buildCorpus } from "../src/eval/corpus.js";
 import type { CallTranscriptTurn, FieldProbe } from "../src/evidence/types.js";
 
 const turn = (
@@ -126,7 +127,8 @@ describe("what elimination costs, measured", () => {
   const eliminated = runEvaluation(400, 20260906, true);
 
   it("recovers the withheld answers", () => {
-    expect(strict.reported.withheldReal).toBe(80);
+    const paraphrases = buildCorpus(400).filter((item) => item.kind === "asked_paraphrase_answered").length;
+    expect(strict.reported.withheldReal).toBe(paraphrases);
     expect(eliminated.reported.withheldReal).toBe(0);
     expect(eliminated.reported.gated.accepted).toBeGreaterThan(strict.reported.gated.accepted);
   });

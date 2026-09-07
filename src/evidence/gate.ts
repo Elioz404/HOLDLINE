@@ -69,10 +69,55 @@ const DEFAULT_UNKNOWN_VALUES = ["", "unknown", "unclear", "n/a", "na", "none", "
 /** Below this, a call is not allowed to speak for itself. */
 export const DEFAULT_MIN_CONFIDENCE = 0.7;
 
+/**
+ * Prose that reports *not having found out*.
+ *
+ * `unknownValues` covers a field whose answer is an enumerated token, where
+ * "I don't know" arrives as `"unknown"`. It cannot cover a field whose answer
+ * is prose, because there the model says so in a sentence. A live call
+ * returned, in full:
+ *
+ *   "[nothing established]; the call remained in carrier's automated
+ *    automated menu and ended before explaining what a documented topic is or where
+ *    the tracking number appears."
+ *
+ * That is not an answer. It is a report that there was no answer, and the gate
+ * called it `verified` — the exact failure this file exists to prevent.
+ *
+ * These patterns are a heuristic, and heuristics were abandoned elsewhere in
+ * this project for good reason. What makes this one defensible is the
+ * direction it fails in: a false match withholds a real answer, which is the
+ * cost this design already publishes and prefers. A false match on the
+ * traversal check claimed a success that never happened. Withholding is
+ * recoverable by a person reading the transcript; a stored non-fact is not.
+ *
+ * `asked_prose_non_answer` and `asked_prose_answered` in the evaluation corpus
+ * measure both directions, so the trade is a number rather than a hope.
+ */
+const NON_ANSWER_PATTERNS: readonly RegExp[] = [
+  /\bno\s+(?:\w+\s+){0,2}(?:answer|explanation|information|response|details?|confirmation|value)\b/i,
+  /\b(?:not|never)\s+(?:\w+\s+){0,2}(?:provided|given|obtained|offered|available|received|determined|confirmed|established|disclosed|stated|specified|answered)\b/i,
+  /\b(?:could|would|did|was|were)\s*n(?:o|')t\s+(?:\w+\s+){0,2}(?:provide|obtain|determine|confirm|establish|answer|say|state|get)\b/i,
+  /\bunable to\b/i,
+  /\bcould not be\s+(?:determined|obtained|confirmed|established|verified|provided)\b/i,
+];
+
+/**
+ * Prose only. A short enumerated value is an answer and must never be read as
+ * the absence of one — "no" is a perfectly good reply to "are you accepting
+ * new patients", and reading it as a non-answer would be its own silent bug.
+ */
+function reportsNonAnswer(text: string): boolean {
+  if (text.split(/\s+/).length < 4) return false;
+  return NON_ANSWER_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 function isUsableValue(value: unknown, unknownValues: readonly string[]): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") {
-    return !unknownValues.includes(value.trim().toLowerCase());
+    const trimmed = value.trim();
+    if (unknownValues.includes(trimmed.toLowerCase())) return false;
+    return !reportsNonAnswer(trimmed);
   }
   if (Array.isArray(value)) return value.length > 0;
   return true;

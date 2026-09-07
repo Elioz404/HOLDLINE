@@ -49,10 +49,12 @@ offline evaluation harness over a seeded, labelled corpus of 400 cases:
 
 | | |
 | --- | --- |
-| Invented values caught | 80/80 — 100% |
-| Direct asks passed | 80/80 — 100% |
-| Paraphrases wrongly accused of invention | 0/80 — 0% |
-| Paraphrases withheld | 80/80 — 100% |
+| Invented values caught | 57/57 — 100% |
+| Direct asks passed | 58/58 — 100% |
+| Paraphrases wrongly accused of invention | 0/57 — 0% |
+| Paraphrases withheld | 57/57 — 100% |
+| Prose non-answers caught | 57/57 — 100% |
+| Genuine prose answers wrongly withheld | 0/57 — 0% |
 
 The last row is the honest cost and is published deliberately. A paraphrase is
 still withheld, because an answer that cannot be attributed to a question
@@ -129,7 +131,7 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 151 tests with no network and no credentials,
+The engine repository's suite is 161 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire
@@ -137,9 +139,9 @@ contract.
 
 ## Note on live calls
 
-Three live calls were placed on 2026-09-07 to published automated
-customer-service lines, and they are worth mentioning because of what they
-broke rather than what they proved.
+Six live calls were placed on 2026-09-07 to published automated
+customer-service lines, and they are worth reporting because of what they broke
+rather than what they proved.
 
 They confirmed CALL-E reaches and transcribes real phone trees, and that an
 agent can state a purpose and have an IVR confirm and route it. They also
@@ -149,26 +151,45 @@ which made a hold metric meaningless), and that the probe's traversal check
 meant anything (it matched the word "press" in a recording's own greeting).
 Both are fixed.
 
-One call is kept whole, masked, as `fixtures/saved-call-fedex-tracking.json`,
-and `test/saved-call.test.ts` runs the gate over it. The result is not a
-gotcha, and is more useful than one:
+Three of those calls are kept whole and masked in `fixtures/`, and the engine
+repository's `test/saved-call.test.ts` runs the gate over every one. Between
+them they cover the whole range of what the gate says about real speech:
 
-- CALL-E's own summary of the call is candid — it says the system would not
-  continue without a tracking number, which is exactly what happened.
-- Alongside it, `taskCompleted` is `true` at 0.9 confidence.
-- The gate verifies `department_confirmed` and quotes the turn that
-  established it, a line genuinely spoken on the call.
-- It withholds `reached_human: "no"`, which was **correct**. Nobody human came
-  on the line. Nothing was asked that the value answers; the truth sits in what
-  did not happen, and this design cannot credit that.
+| Real call | The API reported | The gate returned |
+| --- | --- | --- |
+| 37 turns; the agent states a purpose, the IVR confirms and routes it | `taskCompleted: true`, 0.9 | `department_confirmed` **verified**, quoting a turn genuinely spoken |
+| two carriers, one dispatch, both calls ~6 seconds, **zero** transcript turns | `taskCompleted: true` at confidence **1.0**, with every field of `structuredResult` returned as `"unknown"` | every field `no_transcript`, **everything withheld** |
+| 194 seconds, 23 turns; the agent asks and keeps asking, the system never answers and demands the keypad | `taskCompleted: true`, 0.88 | `asked_but_unclear`, **withheld** |
 
-That last point is a real boundary of the approach, not a defect to be tuned
-away, and it is documented as one in `references/safety.md` and pinned by a
-test so the claim cannot quietly stop being true. Withholding a correct answer
-is the cost of never storing an unsupported one.
+The middle row is worth stating precisely, because the obvious complaint is not
+the right one. The telephony counters were correct — the summary reads
+"[dispatch summary]", and both calls did
+connect and complete. The narrow, reproducible problem is that `taskCompleted`
+came back `true` at confidence 1.0 on a dispatch whose own `structuredResult`
+was `{"saturday_delivery": "unknown", "costs_extra": "unknown"}` for both
+recipients. The model said it did not know and the flag said it was done.
 
-Keypad traversal is still unobserved: the systems reached accepted speech and
-the agent used it.
+Our own share of that is recorded alongside it: the task text ended with "if a
+person answers, thank them and end the call", and since CALL-E labels the
+automated system as a person, the greeting almost certainly fired our own exit
+instruction. Removing the clause produced the 194-second call in the third row,
+so the six-second hangups were our bug. That does not account for the
+completion flag, and a caller branching on it would have stored two answers
+nobody gave.
+
+The first row also carries the honest cost. `reached_human: "no"` was
+**correct** — nobody human came on the line — and the gate withheld it anyway,
+because nothing was *asked* that the value answers; the truth sat in what did
+not happen. This design cannot credit a fact established by absence. That is a
+boundary of the approach rather than a defect to be tuned away, it is
+documented as one in `references/safety.md`, and a test pins it so the claim
+cannot quietly stop being true.
+
+**The keypad boundary is now observed rather than assumed.** On the last call
+the carrier system stopped accepting speech and demanded DTMF — "please key in
+the number of the option you'd like" — and the call ended without one. This
+skill does not press keys. That is a limit, it was watched happening, and it is
+not written up as a feature.
 
 Everything else in this submission — the evaluation corpus, the console
 scenarios, the fake transport — is synthetic and labelled as such. No figure

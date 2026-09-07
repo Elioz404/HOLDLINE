@@ -125,7 +125,14 @@ function judge(item: EvalCase, attributeByElimination: boolean): CaseResult {
     kind: item.kind,
     field: item.field,
     schemaAccepts: item.structuredResult !== null,
-    unestablished: !item.trulyAsked,
+    // A fact is established when it was asked *and* answered. This used to
+    // read `!item.trulyAsked`, which quietly meant the headline "never
+    // established" figure could only ever count values invented for questions
+    // nobody asked. A question that was asked and stonewalled — the single
+    // most common real outcome, and the one a live call exposed — scored as
+    // established no matter what the gate did with it. The metric could not
+    // see its own worst case.
+    unestablished: !(item.trulyAsked && item.trulyAnswered),
     reallyAnswered: item.trulyAsked && item.trulyAnswered,
     withheld,
     flaggedUnsupported,

@@ -24,9 +24,11 @@ The measured cost, from `npm run eval` over 400 seeded cases:
 
 | | |
 | --- | --- |
-| Invented values caught | 80/80 — 100% |
-| Paraphrases wrongly accused of invention | 0/80 — 0% |
-| Paraphrases withheld | 80/80 — 100% |
+| Invented values caught | 57/57 — 100% |
+| Paraphrases wrongly accused of invention | 0/57 — 0% |
+| Paraphrases withheld | 57/57 — 100% |
+| Prose non-answers caught | 57/57 — 100% |
+| Genuine prose answers wrongly withheld | 0/57 — 0% |
 
 Every paraphrase in that corpus is withheld. Better probes are the only thing
 that moves that number.

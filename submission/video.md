@@ -17,7 +17,7 @@ Set the browser to a clean window, no bookmarks bar, no other tabs. The
 default batch is the discharge-planning scenario; leave it as it loads. The console
 adapts to the system theme; dark reads better on video.
 
-The account exists and three real calls have been placed, so there is real
+The account exists and six real calls have been placed, so there is real
 footage to show — see 1:35. The console itself is still simulated and labels
 itself so on screen; say that out loud once rather than letting a viewer catch
 it. See Honesty below.
@@ -135,8 +135,10 @@ Reasons to keep it in rather than trim for time:
 - The real calls are the stronger half of that sentence. They confirmed CALL-E
   navigates a real IVR, and they broke two of our own assumptions — that is a
   better story than a clean run.
-- Do not claim keypad traversal. The systems reached accepted speech and the
-  agent used speech. Say "it navigated a real phone tree" and stop there.
+- Do not claim keypad traversal. Say the opposite, because the opposite is the
+  better line: on the last call carrier stopped accepting speech, demanded
+  *"[keypad demand]"*, and hung up on an agent that only had a
+  voice. That is a limit we watched happen and it belongs in the video.
 
 The twenty seconds of real footage is `npm run replay`, and it is the strongest
 shot in the video because nothing about it is staged:

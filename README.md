@@ -109,18 +109,29 @@ acts on the answer:
 | Through the gate | 80 | **0** | **0% wrong** |
 
 One answer in four, from a plain schema check, is a value the conversation
-never produced. The gate returns none of them. It also withholds **80 real
+never produced. The gate returns none of them. It also withholds **57 real
 answers** it could not attribute — that is the price, and it is on the same
 table rather than in a footnote.
+
+The last two rows exist because a live call proved the corpus was blind. Every
+value in it used to be a single token, so a result field whose answer is prose
+was never tested — and a real call came back with the sentence *"[nothing established]
+was provided; the call remained in carrier's automated automated menu and ended
+before explaining…"*, which the gate called **verified**. A confident
+unsupported value, waved through by the component built to stop exactly that.
+Both the corpus and `isUsableValue` were fixed; the story is in
+[What the live calls broke](#what-is-real-and-what-is-not).
 
 How the gate performs case by case:
 
 | | |
 | --- | --- |
-| Invented values caught | **80/80 — 100%** |
-| Direct asks passed | 80/80 — 100% |
-| Paraphrases wrongly accused | **0/80 — 0%** |
-| Paraphrases withheld | 80/80 — 100% |
+| Invented values caught | **57/57 — 100%** |
+| Direct asks passed | 58/58 — 100% |
+| Paraphrases wrongly accused | **0/57 — 0%** |
+| Paraphrases withheld | 57/57 — 100% |
+| Prose non-answers caught | **57/57 — 100%** |
+| Genuine prose answers wrongly withheld | **0/57 — 0%** |
 
 The last row is the honest cost, and there is now a lever against it — see
 [Buying the withheld answers back](#buying-the-withheld-answers-back). It is
@@ -151,13 +162,13 @@ borrow its name.
 
 ```
                                   strict        with elimination
-  Invented values caught          80/80  100.0%      80/80  100.0%
-  Answers reported                         80              160
+  Invented values caught          57/57  100.0%      57/57  100.0%
+  Answers reported                        115              172
   ...never established                      0                0
-  Real answers withheld                    80                0
+  Real answers withheld                    57                0
 ```
 
-Twice the answers, and nothing unestablished got through.
+Half again the answers, and nothing unestablished got through.
 
 **Read that against the corpus, not against your workflow.** Every case in it
 probes exactly one field, so elimination is always unambiguous and fires on
@@ -398,7 +409,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 151 tests, no network, no credentials
+npm test          # 161 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 npm run replay    # judges a real saved call; no network, no key, no call
@@ -469,38 +480,58 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**Three live calls have been placed**, on 2026-09-07, to published automated
+**Six live calls have been placed**, on 2026-09-07, to published automated
 customer-service lines. They cost more than they gave and were worth every one:
 
-- CALL-E reached and transcribed real phone trees, 37 and 67 turns, with timings.
-- On one, the agent stated its purpose, the IVR confirmed it — *"you're calling
-  to track a package, right?"* — and moved it to that branch. Navigation by
-  speech, not keypad. **DTMF was offered by the system and never used by the
-  agent**, so keypad traversal remains unobserved.
-- Those calls disproved two things this repository had documented as true: the
+- CALL-E reached and transcribed real phone trees, up to 67 turns, with timings.
+- They disproved two things this repository had documented as true: the
   speaker-label assumption in the route cache, and the probe's own traversal
   verdict. Both are corrected.
+- **The keypad boundary is now observed rather than assumed.** On the last
+  call the carrier system stopped accepting speech and demanded DTMF — *"please
+  [keypad demand] you'd like"* — and the call ended without
+  one. HOLDLINE does not press keys. That is a limit, it was watched
+  happening, and it is not written here as a feature.
 
-**The gate has been run over one of them.** `fixtures/saved-call-fedex-tracking.json`
-holds that call whole and masked — 37 turns of real speech, plus the structured
-result CALL-E returned for it — and `test/saved-call.test.ts` judges it:
+**Three of those calls are kept whole and masked in `fixtures/`, and
+`test/saved-call.test.ts` runs the gate over every one.** Between them they
+cover the whole range of what the gate says about real speech:
 
-| | |
-| --- | --- |
-| CALL-E's summary | candid: the system would not continue without a tracking number |
-| `taskCompleted` | `true`, confidence 0.9 |
-| `department_confirmed` | **verified**, quoting a turn genuinely spoken on the call |
-| `reached_human: "no"` | **withheld** — and it was correct |
+| Real call | CALL-E reported | The gate returned |
+| --- | --- | --- |
+| `saved-call-fedex-tracking.json` — 37 turns, agent states a purpose, IVR confirms and routes it | `taskCompleted: true`, 0.9 | `department_confirmed` **verified**, quoting a turn genuinely spoken |
+| `saved-call-completed-without-transcript.json` — two carriers, one dispatch, both calls ~6 seconds, **zero** transcript turns | `taskCompleted: true` at confidence **1.0**, with every field of `structuredResult` returned as `"unknown"` | every field `no_transcript`, **everything withheld** |
+| `saved-call-asked-never-answered.json` — 194 seconds, 23 turns, the agent asks and keeps asking; the system never answers and demands the keypad | `taskCompleted: true`, 0.88 | `asked_but_unclear`, **withheld** |
 
-The last row is the interesting one. Nobody human came on the line, so `"no"`
-was true; but nothing was *asked* that the value answers, because the truth
-sits in what did not happen. This design cannot credit a fact established by
-absence. That is a boundary of the approach rather than a bug to tune away, it
-is written down in `skills/holdline/references/safety.md`, and the test pins it
-so the claim cannot quietly stop being true. Withholding a correct answer is
-the price of never storing an unsupported one.
+The middle row is the one to read twice, and it needs stating precisely. The
+telephony counters were **correct**: the summary reads
+*"Successful: 2 \| Declined: 0 \| No answer: 0 \| Failed: 0"*, and both calls
+genuinely did connect and complete. That is not the problem.
 
-`fixtures/saved-call-usps-after-hours.json` keeps an excerpt of the other call,
+The problem is one field. `taskCompleted` came back `true` at confidence
+**1.0** on a dispatch whose own `structuredResult` was
+`{"saturday_delivery": "unknown", "costs_extra": "unknown"}` for both
+recipients. The model said it did not know, twice, and the completion flag said
+it was done, perfectly. Those two cannot both be right, and a caller reads the
+flag.
+
+Our own share of that is written down too: the task text for that dispatch
+ended with *"if a person answers, thank them and end the call"*, and CALL-E
+labels the automated system as a person — the greeting almost certainly fired
+our own exit instruction. The next call, with the clause removed, ran 194
+seconds. The bug was ours. It still does not explain `taskCompleted: true` at
+confidence 1.0 sitting on top of two `"unknown"` results.
+
+The first row's second half is the honest cost. `reached_human: "no"` was
+**correct** — nobody human came on the line — and the gate withheld it anyway,
+because nothing was *asked* that the value answers; the truth sat in what did
+not happen. This design cannot credit a fact established by absence. That is a
+boundary of the approach rather than a bug to tune away, it is written down in
+`skills/holdline/references/safety.md`, and a test pins it so the claim cannot
+quietly stop being true. Withholding a correct answer is the price of never
+storing an unsupported one.
+
+`fixtures/saved-call-usps-after-hours.json` keeps an excerpt of a fourth call,
 which is where the speaker-label correction came from.
 
 Everything else — the console, the evaluation corpus, the fake transport — is

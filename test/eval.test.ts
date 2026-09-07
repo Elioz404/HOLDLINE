@@ -98,7 +98,11 @@ describe("evaluation harness", () => {
   const report = runEvaluation(400);
 
   it("catches every invented value in the corpus", () => {
-    expect(report.hallucinated.total).toBe(80);
+    // Counted from the corpus rather than hardcoded. A magic number here had
+    // to be edited the moment the corpus grew a class, which is exactly when
+    // a test should be holding still and telling the truth instead.
+    const invented = buildCorpus(400).filter((item) => item.kind === "not_asked_value_returned").length;
+    expect(report.hallucinated.total).toBe(invented);
     expect(report.hallucinated.rate).toBe(1);
   });
 
