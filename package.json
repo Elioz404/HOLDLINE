@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "probe": "tsx src/probe/validate-traversal.ts"
+    "probe": "tsx src/probe/validate-traversal.ts",
+    "eval": "tsx src/eval/run.ts"
   },
   "dependencies": {
     "@call-e/calle": "^0.7.0"

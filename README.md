@@ -3,8 +3,8 @@
 An evidence-gated engine for phone calls that have to get through a queue before
 they get an answer.
 
-Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 2 of 8**, engine
-and core modules. See [Status](#status) for exactly what exists and what does
+Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 3 of 8**, engine,
+core modules, and a measured gate. See [Status](#status) for exactly what exists and what does
 not — nothing below describes unwritten code.
 
 ## Why
@@ -30,6 +30,7 @@ matter how confident the model sounded.
 | Queue engine | `src/engine/queue.ts` | Asks one question of many places in a single dispatch, then gates each answer separately. Preview by default. |
 | Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Four verdicts: `verified`, `asked_but_unclear`, `never_asked`, `no_transcript`. |
 | Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
+| Evaluation harness | `src/eval/` | Measures the gate against a seeded, labelled corpus — including cases it is expected to get wrong. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
 | Failure classifier | `src/core/outcome.ts` | Sorts failures into `retryable`, `deterministic`, and `reconcile`. |
 | Idempotency | `src/core/idempotency.ts` | Derives keys from the authorizing business record. Records issued keys so a replay is distinguishable from a fresh dispatch. |
@@ -56,15 +57,40 @@ The overall verdict is `verified` only when every required field is `verified`
 **and** completion confidence clears a floor (default `0.7`). There is no
 partial pass.
 
-**Limits of the check, stated plainly.** Topic detection is lexical: a probe is
-a list of substrings and regular expressions matched case-insensitively against
-bot turns. It will miss a paraphrase sharing no vocabulary with its probes, and
-it will fire on a bot turn that mentions a topic without asking about it. It is
-a floor — it catches fields the call never went near — not a proof that a
-question was well asked. Probe quality is the operator's job.
-`test/evidence-gate.test.ts` pins the failure modes, including the one where a
-caller volunteers information and the gate correctly refuses to credit it as
-the agent having asked.
+#### Not confirmed is not the same as invented
+
+A fifth verdict, `unattributed`, exists because conflating those two makes the
+gate useless. If the bot asked a real question and got a real answer, but
+phrased it in words no probe contains, the field is withheld — and it is *not*
+reported as invented. The gate counts question-and-answer exchanges no probe
+claims; only a value with no unclaimed exchange left to have come from is
+flagged. That distinction was added because the harness measured its absence.
+
+### What it measures
+
+```
+npm run eval
+```
+
+400 seeded cases, offline, no calls placed:
+
+| | |
+| --- | --- |
+| Invented values caught | **80/80 — 100%** |
+| Direct asks passed | 80/80 — 100% |
+| Paraphrases wrongly accused | **0/80 — 0%** |
+| Paraphrases withheld | 80/80 — 100% |
+
+The last row is the honest cost and it is reported deliberately. Topic
+detection is lexical: a probe is a list of substrings and regular expressions
+matched case-insensitively against bot turns, so a question sharing no
+vocabulary with its probes reads as unattributable and is withheld. The gate
+fails toward withholding. Better probes reduce this; the number is published so
+the trade is visible rather than omitted.
+
+These figures come from a synthetic corpus that the gate is measured against,
+not from live calls. `src/eval/corpus.ts` generates it deterministically from a
+seed, and it deliberately contains cases the gate is expected to fail.
 
 ### Why `reconcile` is a separate failure class
 
@@ -112,7 +138,8 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 59 tests, no network, no credentials
+npm test          # 70 tests, no network, no credentials
+npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 ```
 
@@ -142,7 +169,7 @@ written to any output file. See `.env.example`.
 
 ## Status
 
-Day 2 of 8. What is listed under [What exists today](#what-exists-today) is
+Day 3 of 8. What is listed under [What exists today](#what-exists-today) is
 written, typechecked, and covered by the test suite. **Not yet built:** the
 webhook receiver, the freshness ledger, the IVR route cache, the MCP server,
 the Agent Skill packaging, the Slack plugin, and the web console. They are

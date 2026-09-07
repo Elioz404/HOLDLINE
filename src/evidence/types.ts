@@ -48,6 +48,13 @@ export interface FieldProbe {
 export type FieldVerdict =
   | "verified"
   | "asked_but_unclear"
+  /**
+   * A question was asked and answered, but none of this field's probes match
+   * it, so the answer cannot be attributed to this field. Withheld, but not
+   * accused of being invented — the distinction between "I cannot confirm
+   * this" and "this never happened".
+   */
+  | "unattributed"
   | "never_asked"
   | "no_transcript";
 

@@ -71,6 +71,7 @@ function judgeField(
   result: Record<string, unknown> | null,
   botText: readonly string[],
   hasTranscript: boolean,
+  unclaimedExchanges: number,
 ): FieldReport {
   const unknownValues = probe.unknownValues ?? DEFAULT_UNKNOWN_VALUES;
   const value = result?.[probe.field];
@@ -92,19 +93,59 @@ function judgeField(
   let verdict: FieldVerdict;
   if (asked && hasValue) verdict = "verified";
   else if (asked) verdict = "asked_but_unclear";
+  else if (hasValue && unclaimedExchanges > 0) verdict = "unattributed";
   else verdict = "never_asked";
 
+  // Only a value with no exchange left to hang on is called invented. If some
+  // question was asked and answered that no probe claims, this field might be
+  // its answer — we cannot tell, and saying so is not the same as accusing.
   const unsupported = verdict === "never_asked" && hasValue;
 
   const note = unsupported
-    ? "A value was returned for a topic no bot turn raised. The call did not establish this."
+    ? "A value was returned, and every question the call asked is accounted for by another field. Nothing was asked that this could answer."
     : verdict === "never_asked"
       ? "No bot turn raised this topic."
-      : verdict === "asked_but_unclear"
-        ? "The bot raised this topic but no usable answer came back."
-        : "A bot turn raised this topic and a usable answer came back.";
+      : verdict === "unattributed"
+        ? "A question was asked and answered, but no probe for this field matches it, so the answer cannot be attributed here."
+        : verdict === "asked_but_unclear"
+          ? "The bot raised this topic but no usable answer came back."
+          : "A bot turn raised this topic and a usable answer came back.";
 
   return { field: probe.field, required: probe.required, verdict, hasValue, unsupported, note };
+}
+
+/**
+ * Count question-and-answer exchanges that no probe claims.
+ *
+ * A bot turn containing a question mark, immediately followed by a turn from
+ * the other party, is an exchange. If some probe matches that bot turn, the
+ * exchange belongs to that field. What is left over is the room in which an
+ * unmatched field's answer could plausibly live — a paraphrase the probes
+ * cannot see.
+ *
+ * When nothing is left over, a field carrying a value has no exchange to have
+ * come from, and that is the case worth flagging.
+ */
+function countUnclaimedExchanges(
+  turns: readonly CallTranscriptTurn[],
+  probes: readonly FieldProbe[],
+): number {
+  let unclaimed = 0;
+  for (let i = 0; i < turns.length - 1; i += 1) {
+    const current = turns[i]!;
+    const next = turns[i + 1]!;
+    if (current.speaker !== "bot" || !current.text.includes("?")) continue;
+    if (next.speaker === "bot") continue; // nobody answered
+
+    const text = current.text.toLowerCase();
+    const claimed = probes.some((probe) =>
+      probe.asks.some((ask) =>
+        typeof ask === "string" ? text.includes(ask.toLowerCase()) : ask.test(text),
+      ),
+    );
+    if (!claimed) unclaimed += 1;
+  }
+  return unclaimed;
 }
 
 /** Flatten the bot's spoken turns to lowercased text, oldest first. */
@@ -128,8 +169,9 @@ export function runEvidenceGate(input: GateInput): GateReport {
   const botText = botTurnText(input.transcriptTurns);
   const hasTranscript = input.transcriptTurns.length > 0;
 
+  const unclaimedExchanges = countUnclaimedExchanges(input.transcriptTurns, input.probes);
   const fields = input.probes.map((probe) =>
-    judgeField(probe, input.structuredResult, botText, hasTranscript),
+    judgeField(probe, input.structuredResult, botText, hasTranscript, unclaimedExchanges),
   );
 
   const reasons: string[] = [];
