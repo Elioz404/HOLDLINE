@@ -15,16 +15,21 @@
  *
  * ── What this does ─────────────────────────────────────────────────────────
  * Every field in the result schema is checked against the transcript turns the
- * bot actually spoke. Four verdicts:
+ * bot actually spoke. Five verdicts:
  *
  *   verified          the bot raised the topic and a usable value came back
  *   asked_but_unclear the bot raised the topic and the answer was not usable
+ *   unattributed      some question was asked and answered, but no probe for
+ *                     this field matches it, so the answer cannot be pinned here
  *   never_asked       no bot turn raised the topic
  *   no_transcript     there is no transcript, so nothing can be checked
  *
  * The one that matters is a field carrying a confident-looking value whose
- * topic was never spoken. That is `never_asked` with `unsupported: true`, and
- * it is the case a plain schema check cannot see.
+ * topic was never spoken *and* for which no unclaimed exchange exists. That is
+ * `never_asked` with `unsupported: true`, and it is the case a plain schema
+ * check cannot see. `unattributed` exists so that a genuinely asked question,
+ * phrased in words the probes do not contain, is withheld without being
+ * accused of having been invented — those are different states.
  *
  * ── What this does not do ──────────────────────────────────────────────────
  * Topic detection is lexical. A probe is a list of substrings and regular
@@ -55,15 +60,19 @@ function isUsableValue(value: unknown, unknownValues: readonly string[]): boolea
   return true;
 }
 
-function botSaidSomethingMatching(
-  botText: readonly string[],
+/** The first bot turn matching this field's probes, or null. */
+function findSupportingTurn(
+  botTurns: readonly string[],
   probe: FieldProbe,
-): boolean {
-  return botText.some((text) =>
+): string | null {
+  const hit = botTurns.find((text) =>
     probe.asks.some((ask) =>
-      typeof ask === "string" ? text.includes(ask.toLowerCase()) : ask.test(text),
+      typeof ask === "string"
+        ? text.toLowerCase().includes(ask.toLowerCase())
+        : ask.test(text.toLowerCase()),
     ),
   );
+  return hit ?? null;
 }
 
 function judgeField(
@@ -84,11 +93,13 @@ function judgeField(
       verdict: "no_transcript",
       hasValue,
       unsupported: false,
+      supportingTurn: null,
       note: "No transcript turns were returned, so it cannot be shown that this was asked.",
     };
   }
 
-  const asked = botSaidSomethingMatching(botText, probe);
+  const supportingTurn = findSupportingTurn(botText, probe);
+  const asked = supportingTurn !== null;
 
   let verdict: FieldVerdict;
   if (asked && hasValue) verdict = "verified";
@@ -111,7 +122,15 @@ function judgeField(
           ? "The bot raised this topic but no usable answer came back."
           : "A bot turn raised this topic and a usable answer came back.";
 
-  return { field: probe.field, required: probe.required, verdict, hasValue, unsupported, note };
+  return {
+    field: probe.field,
+    required: probe.required,
+    verdict,
+    hasValue,
+    unsupported,
+    supportingTurn: asked ? supportingTurn : null,
+    note,
+  };
 }
 
 /**
@@ -150,9 +169,9 @@ function countUnclaimedExchanges(
 
 /** Flatten the bot's spoken turns to lowercased text, oldest first. */
 export function botTurnText(turns: readonly CallTranscriptTurn[]): string[] {
-  return turns
-    .filter((turn) => turn.speaker === "bot")
-    .map((turn) => turn.text.toLowerCase());
+  // Original case is preserved: these strings are quoted into stored facts.
+  // Matching lowercases at comparison time instead.
+  return turns.filter((turn) => turn.speaker === "bot").map((turn) => turn.text);
 }
 
 /**

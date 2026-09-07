@@ -69,6 +69,12 @@ export interface FieldReport {
    * schema check cannot see, and the reason this module exists.
    */
   readonly unsupported: boolean;
+  /**
+   * The bot turn that matched this field's probes, verbatim. `null` for every
+   * verdict other than `verified` / `asked_but_unclear`. This is the quote a
+   * stored fact is allowed to cite; a fact without one is not storable.
+   */
+  readonly supportingTurn: string | null;
   readonly note: string;
 }
 
