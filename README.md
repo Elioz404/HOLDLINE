@@ -3,9 +3,10 @@
 An evidence-gated engine for phone calls that have to get through a queue before
 they get an answer.
 
-Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 4 of 8** — engine,
-core modules, a measured gate, and the ledgers. See [Status](#status) for
-exactly what exists and what does not; nothing below describes unwritten code.
+Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 5 of 8** — engine,
+core modules, a measured gate, the ledgers, and an MCP server. See
+[Status](#status) for exactly what exists and what does not; nothing below
+describes unwritten code.
 
 ## Why
 
@@ -34,6 +35,8 @@ matter how confident the model sounded.
 | Freshness ledger | `src/ledger/facts.ts` | Stores verified facts with the moment and the sentence that established them, and serves them until a per-field TTL expires. |
 | Route cache | `src/ledger/routes.ts` | Reads the menu path and the time-to-human out of a transcript, and turns it into a hint for the next call. |
 | Webhook receiver | `src/engine/webhook.ts` | Treats an unsigned delivery as a signal to re-fetch the call, never as a source of truth. |
+| MCP server | `src/mcp/server.ts` | Exposes `plan_hold`, `run_hold` and `get_verdict` over stdio. Only one of the three can dial, and only on explicit confirmation. |
+| Agent Skill | `skills/holdline/` | `SKILL.md` plus safety and probe-writing references, in the contribution template's folder shape. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
 | Failure classifier | `src/core/outcome.ts` | Sorts failures into `retryable`, `deterministic`, and `reconcile`. |
 | Idempotency | `src/core/idempotency.ts` | Derives keys from the authorizing business record. Records issued keys so a replay is distinguishable from a fresh dispatch. |
@@ -103,6 +106,34 @@ the SDK's `waitForResult`, then dialed anyway and completed. A timeout does not
 mean no call happened, so retrying one places a second real call to a real
 person. Timeouts, dropped connections, and unrecognized 5xx responses are
 classified `reconcile`: go find out what happened before doing anything else.
+
+### Using it from an agent
+
+```bash
+npm run mcp                        # stdio; needs CALLE_API_KEY to dial
+HOLDLINE_SIMULATE=1 npm run mcp    # no account needed, no telephone involved
+```
+
+Three tools, and the split between them is the safety model:
+
+| Tool | Dials? | |
+| --- | --- | --- |
+| `plan_hold` | no | Compiles the task, validates every number, derives the idempotency key, reports what the ledger already answers. |
+| `run_hold` | yes | Dispatches and judges each answer. Requires `confirm: true` in the same request; there is no setting that removes it. |
+| `get_verdict` | no | Fetches a call by id and checks it against the transcript. |
+
+`plan_hold` and `get_verdict` are annotated `readOnlyHint: true`; `run_hold` is
+annotated destructive. An agent driving this cannot reach a telephone by
+accident — the only tool that dials is the one that must be told, in the same
+request, that dialing is intended. Every phone number in every response is
+masked, and `plan_hold` works without credentials because planning needs no
+network.
+
+**Simulation mode.** With `HOLDLINE_SIMULATE=1` the server runs against the
+fake transport, and every response carries `simulated: true` and a notice
+saying no telephone was involved. It exists so the tools can be exercised and
+reviewed without an account, which is the state this project is currently in.
+Simulated output is a rehearsal, never a finding.
 
 ### The freshness ledger
 
@@ -210,7 +241,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 91 tests, no network, no credentials
+npm test          # 100 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 ```
@@ -241,10 +272,10 @@ written to any output file. See `.env.example`.
 
 ## Status
 
-Day 4 of 8. What is listed under [What exists today](#what-exists-today) is
-written, typechecked, and covered by the test suite. **Not yet built:** the MCP
-server, the Agent Skill packaging, the Slack plugin, and the web console. They
-are planned, not present.
+Day 5 of 8. What is listed under [What exists today](#what-exists-today) is
+written, typechecked, and covered by the test suite. **Not yet built:** the
+Slack plugin, the web console, and the pull request packaging for the
+`awesome-phone-call-agents` repository. They are planned, not present.
 
 Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 `InMemoryDispatchRegistry` lose their contents when the process exits. The

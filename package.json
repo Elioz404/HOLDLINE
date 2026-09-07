@@ -14,10 +14,13 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "probe": "tsx src/probe/validate-traversal.ts",
-    "eval": "tsx src/eval/run.ts"
+    "eval": "tsx src/eval/run.ts",
+    "mcp": "tsx src/mcp/run.ts"
   },
   "dependencies": {
-    "@call-e/calle": "^0.7.0"
+    "@call-e/calle": "^0.7.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
