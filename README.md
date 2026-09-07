@@ -3,9 +3,9 @@
 An evidence-gated engine for phone calls that have to get through a queue before
 they get an answer.
 
-Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 3 of 8**, engine,
-core modules, and a measured gate. See [Status](#status) for exactly what exists and what does
-not — nothing below describes unwritten code.
+Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 4 of 8** — engine,
+core modules, a measured gate, and the ledgers. See [Status](#status) for
+exactly what exists and what does not; nothing below describes unwritten code.
 
 ## Why
 
@@ -31,6 +31,9 @@ matter how confident the model sounded.
 | Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Five verdicts: `verified`, `asked_but_unclear`, `unattributed`, `never_asked`, `no_transcript`. |
 | Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
 | Evaluation harness | `src/eval/` | Measures the gate against a seeded, labelled corpus — including cases it is expected to get wrong. |
+| Freshness ledger | `src/ledger/facts.ts` | Stores verified facts with the moment and the sentence that established them, and serves them until a per-field TTL expires. |
+| Route cache | `src/ledger/routes.ts` | Reads the menu path and the time-to-human out of a transcript, and turns it into a hint for the next call. |
+| Webhook receiver | `src/engine/webhook.ts` | Treats an unsigned delivery as a signal to re-fetch the call, never as a source of truth. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
 | Failure classifier | `src/core/outcome.ts` | Sorts failures into `retryable`, `deterministic`, and `reconcile`. |
 | Idempotency | `src/core/idempotency.ts` | Derives keys from the authorizing business record. Records issued keys so a replay is distinguishable from a fresh dispatch. |
@@ -101,6 +104,74 @@ mean no call happened, so retrying one places a second real call to a real
 person. Timeouts, dropped connections, and unrecognized 5xx responses are
 classified `reconcile`: go find out what happened before doing anything else.
 
+### The freshness ledger
+
+A verified fact is worth reusing. How long for depends entirely on the fact:
+whether a clinic accepts new patients is good for weeks, whether a claim has
+been paid is good for no time at all. TTLs are therefore per field, and the
+defaults in `DEFAULT_TTL` are a starting point callers are expected to replace:
+
+| Field | Lifetime |
+| --- | --- |
+| `reached_department` | 90 days |
+| `accepts_new_patients` | 30 days |
+| `opening_hours` | 14 days |
+| `part_in_stock` | 4 hours |
+| `reference_status` | 0 — never reused |
+| anything else | 0 — never reused |
+
+Two properties are enforced rather than documented. `record()` takes a
+`GateReport` and writes only the fields it marked `verified`, so there is no
+method that accepts a value without its evidence — a caller who ignores the
+gate still cannot store an unestablished fact. And freshness is compared
+strictly (`age < ttl`), so a TTL of zero means never reusable rather than
+reusable for one instant, and an unclassified field causes a call instead of
+serving something old.
+
+`partition()` is how this reaches the queue engine: hand it your targets and a
+field, and it returns what is already answered and what still needs a phone
+call.
+
+### The route cache
+
+`observeRoute()` reads a transcript and extracts the menu prompts, the steps
+the agent took through them, and the offset at which a person first spoke.
+`hintFor()` turns that into a short instruction for the next call's task. It is
+meant to be passed as the queue's `routingHint`, which `planQueue` declares
+`"high"` rather than `"required"`, so it is the first thing dropped when the
+goal needs the 255 characters.
+
+`totalHoldSeconds()` sums the time-to-human across cached routes. That is the
+figure this project exists to move: seconds a machine spent in a queue instead
+of a person.
+
+**An assumption, stated because it is load-bearing.** CALL-E labels transcript
+turns `bot`, `user`, or `unknown`. This module reads `unknown` turns as system
+audio and the first `user` turn as a person answering. That is an inference
+from the labels, not a documented guarantee; if CALL-E ever labels a human
+`unknown` on some route, the hold figure for that route is wrong.
+`observeRoute()` returns `null` when no menu language appears at all, rather
+than inventing a route that would mislead the next caller.
+
+### Webhooks are a doorbell, not a document
+
+CALL-E's SDK deprecates its own signature helpers with the reason written out:
+*"Current CALL-E webhook deliveries are not signed."* Anyone who learns the
+endpoint URL can post anything to it.
+
+So `handleWebhook` reads exactly one thing out of a delivery — a call id — and
+then asks the API what happened. Nothing from the payload reaches the Evidence
+Gate, the ledger, or the caller. A call id this application never dispatched is
+refused before any fetch, so the endpoint cannot be used to make the service
+enumerate someone else's calls. Deliveries are replay-safe, because webhooks
+are retried. A malformed body and an unreachable API both resolve to a verdict
+rather than an exception — an endpoint that throws is an endpoint that gets
+retried forever. (Errors from a custom `DispatchRegistry` are not caught; the
+in-memory implementation cannot throw.)
+
+`test/webhook.test.ts` includes a hostile delivery claiming a result the call
+did not produce; the receiver returns the real one.
+
 ### Masking, exactly
 
 `maskPhone` keeps the leading `+`, the first two digits, and the last two.
@@ -128,6 +199,7 @@ against CALL-E as it behaves rather than as the happy path implies:
 | `late_dial` | Still queued past the client's patience, dials afterwards ([#283](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/283)). |
 | `stuck_in_progress` | Accepted, never reaches a terminal state ([#305](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/305)). |
 | `slow_first_speech` | Long silence before the bot speaks ([#295](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/295)). |
+| `voicemail` | An answering machine picks up and no question is ever put to a person. |
 | `provider_unavailable` | A bare 503 from call creation. |
 
 Replaying a used idempotency key returns `201 Created` with the existing call,
@@ -138,7 +210,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 70 tests, no network, no credentials
+npm test          # 91 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 ```
@@ -169,11 +241,15 @@ written to any output file. See `.env.example`.
 
 ## Status
 
-Day 3 of 8. What is listed under [What exists today](#what-exists-today) is
-written, typechecked, and covered by the test suite. **Not yet built:** the
-webhook receiver, the freshness ledger, the IVR route cache, the MCP server,
-the Agent Skill packaging, the Slack plugin, and the web console. They are
-planned, not present.
+Day 4 of 8. What is listed under [What exists today](#what-exists-today) is
+written, typechecked, and covered by the test suite. **Not yet built:** the MCP
+server, the Agent Skill packaging, the Slack plugin, and the web console. They
+are planned, not present.
+
+Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
+`InMemoryDispatchRegistry` lose their contents when the process exits. The
+interfaces are the durable part; swapping in a real store is a deployment
+concern and has not been done here.
 
 **No live call has been placed.** Every scenario in the fake transport and
 `fixtures/traversal-with-menu.json` is synthetic and labelled as such. They
