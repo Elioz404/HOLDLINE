@@ -61,10 +61,16 @@ still withheld, because an answer that cannot be attributed to a question
 should not be stored as fact. Better probes are the only thing that moves it;
 `references/probes.md` explains the trade.
 
-The full engine — parallel dispatch, freshness ledger, route cache, webhook
-intake, and the MCP server — lives at https://github.com/Elioz404/HOLDLINE.
-This PR is scoped to the skill and its one list entry; the skill is
-self-contained and portable, and needs nothing from that repository to run.
+**This contribution is documentation and contains no runnable code.** The three
+tools it describes are served by an MCP server that lives, with the rest of the
+engine — parallel dispatch, freshness ledger, route cache, webhook intake — at
+https://github.com/Elioz404/HOLDLINE. Every command in `SKILL.md` and the
+references is labelled as belonging to a clone of that repository, because none
+of them work from this directory.
+
+An earlier revision of this PR said the skill was self-contained and needed
+nothing from that repository. That was wrong, it is the substance of the first
+review comment, and it is corrected here and in all three Markdown files.
 
 ## Type
 
