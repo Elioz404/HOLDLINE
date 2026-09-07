@@ -28,7 +28,7 @@ matter how confident the model sounded.
 | Module | File | What it does |
 | --- | --- | --- |
 | Queue engine | `src/engine/queue.ts` | Asks one question of many places in a single dispatch, then gates each answer separately. Preview by default. |
-| Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Four verdicts: `verified`, `asked_but_unclear`, `never_asked`, `no_transcript`. |
+| Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Five verdicts: `verified`, `asked_but_unclear`, `unattributed`, `never_asked`, `no_transcript`. |
 | Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
 | Evaluation harness | `src/eval/` | Measures the gate against a seeded, labelled corpus — including cases it is expected to get wrong. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
