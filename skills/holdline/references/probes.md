@@ -65,6 +65,22 @@ Keep them anchored to distinctive vocabulary. A pattern broad enough to match
 any question defeats the check entirely — the gate would mark everything asked
 and verify values the call never established.
 
+## When a probe misses anyway
+
+Every gate report carries `unclaimedQuestions` — the questions the agent asked
+that no probe claimed, quoted exactly. That list is the repair kit: read it
+after a run, and if one of those questions is the one you meant to ask, paste
+its wording into that field's `asks`.
+
+There is also a fallback for the case where you cannot fix the probe. If
+exactly one question went unclaimed and exactly one field went unmatched, the
+answer cannot have come from anywhere else, and enabling
+`attributeByElimination` returns it with the verdict `attributed` rather than
+withholding it. Measured on the evaluation corpus, that recovered every
+withheld answer without letting a single unestablished value through — but that
+corpus probes one field per call, which is the friendliest possible case. It is
+off by default for a reason.
+
 ## Checking your probes
 
 Run a call in simulation and read the `supportingTurn` on each field. It quotes

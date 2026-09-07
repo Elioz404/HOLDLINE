@@ -15,12 +15,15 @@
  *
  * ── What this does ─────────────────────────────────────────────────────────
  * Every field in the result schema is checked against the transcript turns the
- * bot actually spoke. Five verdicts:
+ * bot actually spoke. Six verdicts:
  *
  *   verified          the bot raised the topic and a usable value came back
  *   asked_but_unclear the bot raised the topic and the answer was not usable
  *   unattributed      some question was asked and answered, but no probe for
  *                     this field matches it, so the answer cannot be pinned here
+ *   attributed        no probe matched, but exactly one question went unclaimed
+ *                     and this was the only unmatched field, so by elimination
+ *                     the answer can only be this one (opt-in)
  *   never_asked       no bot turn raised the topic
  *   no_transcript     there is no transcript, so nothing can be checked
  *
@@ -80,7 +83,9 @@ function judgeField(
   result: Record<string, unknown> | null,
   botText: readonly string[],
   hasTranscript: boolean,
-  unclaimedExchanges: number,
+  unclaimedCount: number,
+  /** Set when elimination is enabled and this field is the forced match. */
+  eliminationTurn: string | null,
 ): FieldReport {
   const unknownValues = probe.unknownValues ?? DEFAULT_UNKNOWN_VALUES;
   const value = result?.[probe.field];
@@ -104,7 +109,8 @@ function judgeField(
   let verdict: FieldVerdict;
   if (asked && hasValue) verdict = "verified";
   else if (asked) verdict = "asked_but_unclear";
-  else if (hasValue && unclaimedExchanges > 0) verdict = "unattributed";
+  else if (hasValue && eliminationTurn !== null) verdict = "attributed";
+  else if (hasValue && unclaimedCount > 0) verdict = "unattributed";
   else verdict = "never_asked";
 
   // Only a value with no exchange left to hang on is called invented. If some
@@ -116,6 +122,8 @@ function judgeField(
     ? "A value was returned, and every question the call asked is accounted for by another field. Nothing was asked that this could answer."
     : verdict === "never_asked"
       ? "No bot turn raised this topic."
+      : verdict === "attributed"
+        ? "No probe matched, but exactly one question went unclaimed and this was the only unmatched field, so the answer can only have come from it."
       : verdict === "unattributed"
         ? "A question was asked and answered, but no probe for this field matches it, so the answer cannot be attributed here."
         : verdict === "asked_but_unclear"
@@ -128,7 +136,7 @@ function judgeField(
     verdict,
     hasValue,
     unsupported,
-    supportingTurn: asked ? supportingTurn : null,
+    supportingTurn: asked ? supportingTurn : eliminationTurn,
     note,
   };
 }
@@ -145,11 +153,11 @@ function judgeField(
  * When nothing is left over, a field carrying a value has no exchange to have
  * come from, and that is the case worth flagging.
  */
-function countUnclaimedExchanges(
+function unclaimedExchanges(
   turns: readonly CallTranscriptTurn[],
   probes: readonly FieldProbe[],
-): number {
-  let unclaimed = 0;
+): string[] {
+  const unclaimed: string[] = [];
   for (let i = 0; i < turns.length - 1; i += 1) {
     const current = turns[i]!;
     const next = turns[i + 1]!;
@@ -162,7 +170,7 @@ function countUnclaimedExchanges(
         typeof ask === "string" ? text.includes(ask.toLowerCase()) : ask.test(text),
       ),
     );
-    if (!claimed) unclaimed += 1;
+    if (!claimed) unclaimed.push(current.text);
   }
   return unclaimed;
 }
@@ -188,9 +196,30 @@ export function runEvidenceGate(input: GateInput): GateReport {
   const botText = botTurnText(input.transcriptTurns);
   const hasTranscript = input.transcriptTurns.length > 0;
 
-  const unclaimedExchanges = countUnclaimedExchanges(input.transcriptTurns, input.probes);
+  const unclaimed = unclaimedExchanges(input.transcriptTurns, input.probes);
+
+  // Elimination is only allowed when it is forced: one question nobody
+  // claimed, one field nobody matched. Two of each is a guess, and a guess is
+  // exactly what this module exists to refuse.
+  let eliminationFor: string | null = null;
+  if (input.attributeByElimination === true && unclaimed.length === 1) {
+    const unmatchedWithValue = input.probes.filter((probe) => {
+      const value = input.structuredResult?.[probe.field];
+      const unknownValues = probe.unknownValues ?? DEFAULT_UNKNOWN_VALUES;
+      return findSupportingTurn(botText, probe) === null && isUsableValue(value, unknownValues);
+    });
+    if (unmatchedWithValue.length === 1) eliminationFor = unmatchedWithValue[0]!.field;
+  }
+
   const fields = input.probes.map((probe) =>
-    judgeField(probe, input.structuredResult, botText, hasTranscript, unclaimedExchanges),
+    judgeField(
+      probe,
+      input.structuredResult,
+      botText,
+      hasTranscript,
+      unclaimed.length,
+      probe.field === eliminationFor ? unclaimed[0]! : null,
+    ),
   );
 
   const reasons: string[] = [];
@@ -206,7 +235,9 @@ export function runEvidenceGate(input: GateInput): GateReport {
 
   for (const field of fields) {
     if (!field.required) continue;
-    if (field.verdict === "verified") continue;
+    // `attributed` passes only because the caller opted into elimination; the
+    // field report still says the attribution was forced rather than matched.
+    if (field.verdict === "verified" || field.verdict === "attributed") continue;
     if (field.unsupported) continue; // already reported above
     reasons.push(`Required field \`${field.field}\`: ${field.verdict}.`);
   }
@@ -225,6 +256,7 @@ export function runEvidenceGate(input: GateInput): GateReport {
     fields,
     reasons,
     unsupportedFields: unsupported.map((f) => f.field),
+    unclaimedQuestions: unclaimed,
     minConfidence,
   };
 }
@@ -239,7 +271,8 @@ export function runEvidenceGate(input: GateInput): GateReport {
 export function gatedResult(report: GateReport, result: Record<string, unknown> | null): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const field of report.fields) {
-    out[field.field] = field.verdict === "verified" ? (result?.[field.field] ?? null) : null;
+    const trusted = field.verdict === "verified" || field.verdict === "attributed";
+    out[field.field] = trusted ? (result?.[field.field] ?? null) : null;
   }
   return out;
 }

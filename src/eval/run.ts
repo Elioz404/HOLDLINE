@@ -7,7 +7,7 @@
  *   npm run eval -- --size 1000 --seed 7
  */
 
-import { formatReport, runEvaluation } from "./harness.js";
+import { formatComparison, formatReport, runEvaluation } from "./harness.js";
 
 function arg(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);
@@ -16,4 +16,9 @@ function arg(name: string, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-console.log(formatReport(runEvaluation(arg("size", 400), arg("seed", 20260906))));
+const size = arg("size", 400);
+const seed = arg("seed", 20260906);
+
+console.log(formatReport(runEvaluation(size, seed)));
+console.log();
+console.log(formatComparison(size, seed));

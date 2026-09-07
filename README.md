@@ -1,10 +1,28 @@
 # HOLDLINE
 
-An evidence-gated engine for phone calls that have to get through a queue before
-they get an answer.
+**For the person whose job is making the same phone call forty times.**
 
-Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 5 of 8** — engine,
-core modules, a measured gate, the ledgers, and an MCP server. See
+A hospital discharge coordinator ringing round care homes for a free bed. A
+billing clerk chasing claim status across payers. A dispatcher checking which
+supplier actually has the part on the shelf. They spend the day in phone menus
+and hold queues, collecting answers they have to act on.
+
+HOLDLINE asks all of them at once, and returns **only the answers the call
+actually established.** A field the conversation never covered comes back
+empty, with the reason, instead of coming back wrong.
+
+<img src="docs/screenshots/verdicts.png" alt="Three care homes from one dispatch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
+
+*One dispatch, three care homes. Two answers established by the call; one
+withheld, with the reason.*
+
+<img src="docs/screenshots/holding.png" alt="Three care homes on hold at once, each row showing the call clock at 1:02 and on hold for 48 seconds" width="860">
+
+*The wait, which is the point. Three queues at once, on the call'''s own clock.*
+
+Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 7 of 8** — engine,
+core modules, a measured gate, the ledgers, an MCP server, an operations
+console, and a verified submission package. See
 [Status](#status) for exactly what exists and what does not; nothing below
 describes unwritten code.
 
@@ -29,14 +47,15 @@ matter how confident the model sounded.
 | Module | File | What it does |
 | --- | --- | --- |
 | Queue engine | `src/engine/queue.ts` | Asks one question of many places in a single dispatch, then gates each answer separately. Preview by default. |
-| Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Five verdicts: `verified`, `asked_but_unclear`, `unattributed`, `never_asked`, `no_transcript`. |
+| Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Six verdicts, from `verified` down to `never_asked`. |
 | Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
 | Evaluation harness | `src/eval/` | Measures the gate against a seeded, labelled corpus — including cases it is expected to get wrong. |
 | Freshness ledger | `src/ledger/facts.ts` | Stores verified facts with the moment and the sentence that established them, and serves them until a per-field TTL expires. |
 | Route cache | `src/ledger/routes.ts` | Reads the menu path and the time-to-human out of a transcript, and turns it into a hint for the next call. |
 | Webhook receiver | `src/engine/webhook.ts` | Treats an unsigned delivery as a signal to re-fetch the call, never as a source of truth. |
+| Console | `src/console/` | An operations view over the same engine: plan a batch, watch each call work through the menu and the queue in call-time, read each verdict with the sentence that established it. |
 | MCP server | `src/mcp/server.ts` | Exposes `plan_hold`, `run_hold` and `get_verdict` over stdio. Only one of the three can dial, and only on explicit confirmation. |
-| Agent Skill | `skills/holdline/` | `SKILL.md` plus safety and probe-writing references, in the contribution template's folder shape. |
+| Agent Skill | `skills/holdline/` | `SKILL.md` plus `references/` covering safety, examples, and probe writing. Passes the target repository's validator. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
 | Failure classifier | `src/core/outcome.ts` | Sorts failures into `retryable`, `deterministic`, and `reconcile`. |
 | Idempotency | `src/core/idempotency.ts` | Derives keys from the authorizing business record. Records issued keys so a replay is distinguishable from a fresh dispatch. |
@@ -78,7 +97,22 @@ flagged. That distinction was added because the harness measured its absence.
 npm run eval
 ```
 
-400 seeded cases, offline, no calls placed:
+400 seeded cases, offline, no calls placed.
+
+**What a caller ends up believing**, which is the number that matters to whoever
+acts on the answer:
+
+| | Answers returned | Never established by the call | |
+| --- | --- | --- | --- |
+| Trusting `structured_result` | 320 | **80** | **25% wrong** |
+| Through the gate | 80 | **0** | **0% wrong** |
+
+One answer in four, from a plain schema check, is a value the conversation
+never produced. The gate returns none of them. It also withholds **80 real
+answers** it could not attribute — that is the price, and it is on the same
+table rather than in a footnote.
+
+How the gate performs case by case:
 
 | | |
 | --- | --- |
@@ -87,7 +121,9 @@ npm run eval
 | Paraphrases wrongly accused | **0/80 — 0%** |
 | Paraphrases withheld | 80/80 — 100% |
 
-The last row is the honest cost and it is reported deliberately. Topic
+The last row is the honest cost, and there is now a lever against it — see
+[Buying the withheld answers back](#buying-the-withheld-answers-back). It is
+reported deliberately either way. Topic
 detection is lexical: a probe is a list of substrings and regular expressions
 matched case-insensitively against bot turns, so a question sharing no
 vocabulary with its probes reads as unattributable and is withheld. The gate
@@ -97,6 +133,77 @@ the trade is visible rather than omitted.
 These figures come from a synthetic corpus that the gate is measured against,
 not from live calls. `src/eval/corpus.ts` generates it deterministically from a
 seed, and it deliberately contains cases the gate is expected to fail.
+
+### Buying the withheld answers back
+
+Withholding a paraphrase is safe and it is still a real answer lost. There is
+one lever that reaches it, and it is not a better matcher: the paraphrases in
+the corpus share no vocabulary with their probes at all, so no lexical
+improvement can see them.
+
+**Attribution by elimination.** When exactly one question went unclaimed and
+exactly one field went unmatched, the answer cannot have come from anywhere
+else. That is not a guess, it is what is left after everything else is
+accounted for. The verdict is `attributed` — reported separately from
+`verified`, because elimination is weaker evidence than a match and should not
+borrow its name.
+
+```
+                                  strict        with elimination
+  Invented values caught          80/80  100.0%      80/80  100.0%
+  Answers reported                         80              160
+  ...never established                      0                0
+  Real answers withheld                    80                0
+```
+
+Twice the answers, and nothing unestablished got through.
+
+**Read that against the corpus, not against your workflow.** Every case in it
+probes exactly one field, so elimination is always unambiguous and fires on
+every paraphrase. A real call asking three questions needs two matched before
+the third can be eliminated. This is the ceiling, not the expectation.
+
+It is **off by default**. It assumes the agent asked only what the task told it
+to — reasonable, since the task is the instruction, but not guaranteed. Enable
+it with `attributeByElimination: true` when that holds for your workflow.
+
+Every report also carries `unclaimedQuestions`: the questions the agent asked
+that no probe claimed, verbatim. If one of them is the question you meant, add
+its wording to that field and the answer stops needing elimination at all.
+
+### What it is worth — a model, not a measurement
+
+Nothing below is a finding. Every input is an assumption you should replace
+with your own, and the arithmetic is shown so you can disagree with it.
+
+Take the discharge coordinator the console demonstrates. Suppose:
+
+| Assumption | Value |
+| --- | --- |
+| Care homes called per placement | 8 |
+| Placements per week | 5 |
+| Minutes per call, menu and hold included | 6 |
+
+That is 40 calls and **four hours a week** on the telephone, for one
+coordinator. Three things change that:
+
+**The calls are one dispatch, not forty.** Wall-clock time becomes the longest
+call rather than the sum of all of them, so the coordinator is not the
+bottleneck between one call and the next.
+
+**Facts inside their TTL cost nothing.** Which homes take a given nursing level
+does not change weekly. Bed availability does, and carries a TTL of zero — the
+ledger will not serve it. The saving comes from the slow-moving half.
+
+**The withheld field is the point.** Four hours is the visible cost. The
+expensive one is a "yes, we have a bed" that the call never actually
+established: a patient stays in hospital another day and the coordinator starts
+again tomorrow. That is the failure this engine exists to make impossible, and
+it is not measured in minutes.
+
+The `396 seconds absorbed` figure on the console's stat strip is computed from
+simulated transcripts. It shows what the counter counts. It is not a claim
+about real calls, and it should not be quoted as one.
 
 ### Why `reconcile` is a separate failure class
 
@@ -110,9 +217,22 @@ classified `reconcile`: go find out what happened before doing anything else.
 ### Using it from an agent
 
 ```bash
+npm run console                    # http://127.0.0.1:4173 — simulation by default
 npm run mcp                        # stdio; needs CALLE_API_KEY to dial
 HOLDLINE_SIMULATE=1 npm run mcp    # no account needed, no telephone involved
 ```
+
+Placing a batch streams progress as it happens: every place gets a row, and the
+row carries the **call's own clock**. Three care homes sit in the queue together
+while the clock climbs from `0:14` to `2:12`, then one after another breaks
+through to a person. The playback runs at 25× and says so on screen — the
+seconds are the call's, the pace is not.
+
+The console is one static page and four JSON endpoints over the same engine —
+no framework, no build step. It binds to loopback deliberately: it shows call
+transcripts and has no authentication of its own. Placing real calls from it
+needs `CALLE_API_KEY` **and** `HOLDLINE_CONSOLE_LIVE=1`, and every run still
+carries an explicit confirmation.
 
 Three tools, and the split between them is the safety model:
 
@@ -203,6 +323,21 @@ in-memory implementation cannot throw.)
 `test/webhook.test.ts` includes a hostile delivery claiming a result the call
 did not produce; the receiver returns the real one.
 
+### Safety, enforced rather than documented
+
+`test/security.test.ts` fails the build on any of these:
+
+- an E.164 literal anywhere in the repository outside a reserved or fictional range
+- an `iams_live_` key in shipped code, docs, or configuration
+- a filled-in value in `.env.example`
+- `.env` or `probe-output/` missing from `.gitignore`
+- a raw number surviving the engine's own output, or a provider error that
+  quotes the request back
+- the queue dialing when `mode` was not set to `"live"`
+
+Production dependencies are three: `@call-e/calle`, the MCP SDK, and `zod`.
+`npm audit --omit=dev` reports no vulnerabilities.
+
 ### Masking, exactly
 
 `maskPhone` keeps the leading `+`, the first two digits, and the last two.
@@ -241,18 +376,24 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 100 tests, no network, no credentials
+npm test          # 138 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
+npm run screenshots  # re-capture docs/screenshots from the live console
 ```
 
 The traversal probe is dry by default:
 
 ```bash
+npm run probe -- --check                               # confirms credentials, dials nothing
 npm run probe                                          # compiles the task, dials nothing
 npm run probe -- --fixture fixtures/traversal-with-menu.json   # replays a saved run
 npm run probe -- --live --to '+1...'                   # places ONE real call
 ```
+
+`--check` fetches a call id that cannot exist. A 404 means the key works; a 401
+means it does not. It costs nothing and answers the question before anyone
+types LIVE and spends one of twenty free calls finding out.
 
 Live mode requires the `--live` flag **and** typing `LIVE` at the prompt. There
 is no flag that skips the prompt.
@@ -268,14 +409,25 @@ unmasked transcript of a real conversation, and a `.masked.json` safe to share.
 ### Credentials
 
 `CALLE_API_KEY` is read from the environment, used server-side only, and never
-written to any output file. See `.env.example`.
+written to any output file. Copy `.env.example` to `.env` and fill it in; the
+scripts that talk to CALL-E — `probe`, `mcp`, `console`, `start` — load it with
+Node's `--env-file-if-exists`, so nothing breaks on a machine without one. The
+offline scripts (`test`, `eval`, `typecheck`, `screenshots`) do not read it at
+all, because they have no business seeing a key.
 
 ## Status
 
-Day 5 of 8. What is listed under [What exists today](#what-exists-today) is
+Day 7 of 8. What is listed under [What exists today](#what-exists-today) is
 written, typechecked, and covered by the test suite. **Not yet built:** the
-Slack plugin, the web console, and the pull request packaging for the
-`awesome-phone-call-agents` repository. They are planned, not present.
+Slack plugin. It is planned, not present.
+
+`submission/` holds the contribution to
+[`awesome-phone-call-agents`](https://github.com/CALLE-AI/awesome-phone-call-agents):
+the pull request body, the exact README lines, and the steps. The skill was
+copied into a working clone of that repository and its own
+`scripts/validate_repository.py` was run against it — it prints
+`Repository validation passed.` The branch name was checked with their
+`scripts/check_branch_name.py`.
 
 Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 `InMemoryDispatchRegistry` lose their contents when the process exits. The

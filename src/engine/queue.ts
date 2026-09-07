@@ -73,6 +73,12 @@ export interface TargetOutcome {
   readonly gate: GateReport;
   /** Fields the gate could vouch for. Everything else is `null`. */
   readonly result: Record<string, unknown>;
+  /**
+   * This recipient's transcript turns. Carried so callers can observe the menu
+   * route and the time-to-human without refetching the call. It contains a real
+   * conversation: redact before it reaches a log or a screen.
+   */
+  readonly transcript: readonly CallTranscriptTurn[];
 }
 
 export type QueueOutcome =
@@ -145,9 +151,10 @@ function turnsFor(recipient: CallRecipient): CallTranscriptTurn[] {
 function judge(request: QueueRequest, call: Call, plan: QueuePlan): TargetOutcome[] {
   return call.recipients.map((recipient, index) => {
     const target = plan.dialable[index];
+    const turns = turnsFor(recipient);
     const gate = runEvidenceGate({
       structuredResult: recipient.structuredResult,
-      transcriptTurns: turnsFor(recipient),
+      transcriptTurns: turns,
       probes: request.probes,
       completionConfidence: call.completionConfidence,
       ...(request.minConfidence === undefined ? {} : { minConfidence: request.minConfidence }),
@@ -159,6 +166,7 @@ function judge(request: QueueRequest, call: Call, plan: QueuePlan): TargetOutcom
       label: target?.label,
       gate,
       result: gatedResult(gate, recipient.structuredResult),
+      transcript: turns,
     };
   });
 }

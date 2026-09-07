@@ -55,6 +55,13 @@ export type FieldVerdict =
    * this" and "this never happened".
    */
   | "unattributed"
+  /**
+   * No probe matched, but exactly one question went unclaimed and exactly one
+   * field went unmatched, so by elimination the answer can only belong here.
+   * Weaker evidence than a lexical match and reported separately for that
+   * reason. Only produced when `attributeByElimination` is enabled.
+   */
+  | "attributed"
   | "never_asked"
   | "no_transcript";
 
@@ -86,6 +93,13 @@ export interface GateInput {
   readonly completionConfidence?: CompletionConfidence | null;
   /** Defaults to 0.7. */
   readonly minConfidence?: number;
+  /**
+   * Allow attribution by elimination when it is forced: one unclaimed
+   * question, one unmatched field. Off by default, because it rests on the
+   * assumption that the agent asked only what the task told it to — reasonable,
+   * since the task is the instruction, but not guaranteed.
+   */
+  readonly attributeByElimination?: boolean;
 }
 
 export interface GateReport {
@@ -95,5 +109,11 @@ export interface GateReport {
   readonly reasons: readonly string[];
   /** Fields that carried a value the call never asked about. */
   readonly unsupportedFields: readonly string[];
+  /**
+   * Questions the agent asked that no probe claimed, verbatim. These are the
+   * raw material for better probes: if one of them is the question you meant
+   * to ask, add its wording to that field's `asks`.
+   */
+  readonly unclaimedQuestions: readonly string[];
   readonly minConfidence: number;
 }

@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOLDLINE console</title>
+<style>
+  :root {
+    --ground:#F4F6F9; --surface:#FFFFFF; --surface-2:#EDF0F5;
+    --ink:#131820; --ink-2:#3A4351; --muted:#626D7C;
+    --line:#DCE1E9; --line-strong:#C3CBD6;
+    --hold:#B26A05; --hold-w:#FBEBD2;
+    --live:#157A51; --live-w:#DDF0E7;
+    --drop:#B03626; --drop-w:#F7E1DE;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0E1218; --surface:#161C24; --surface-2:#1D242E;
+      --ink:#E7ECF3; --ink-2:#BCC5D1; --muted:#8892A0;
+      --line:#262E39; --line-strong:#37414F;
+      --hold:#E9A63F; --hold-w:#3A2A0F;
+      --live:#46BE8B; --live-w:#0F2E23;
+      --drop:#E37A69; --drop-w:#351A16;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.55; }
+  .wrap { max-width:1180px; margin:0 auto; padding:22px 20px 80px; }
+  h1,h2,h3 { margin:0; line-height:1.2; }
+  a { color:var(--hold); }
+  button, input, textarea { font:inherit; color:inherit; }
+  :focus-visible { outline:2px solid var(--hold); outline-offset:2px; }
+
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding-bottom:18px; border-bottom:1px solid var(--line); }
+  .lamp { width:10px; height:10px; border-radius:50%; background:var(--hold); box-shadow:0 0 0 3px var(--hold-w); flex:none; }
+  @media (prefers-reduced-motion: no-preference) { .lamp { animation:blink 2.4s ease-in-out infinite; } }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .wordmark { font-size:22px; font-weight:800; letter-spacing:-.03em; }
+  .wordmark span { color:var(--hold); }
+  .tagline { color:var(--muted); font-size:13px; }
+  .badge { margin-left:auto; font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+           padding:5px 10px; border-radius:5px; border:1px solid var(--hold); color:var(--hold); background:var(--hold-w); }
+  .badge.live { border-color:var(--drop); color:var(--drop); background:var(--drop-w); }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line);
+           border:1px solid var(--line); border-radius:8px; overflow:hidden; margin:18px 0 22px; }
+  .stats div { background:var(--surface); padding:11px 14px; }
+  .stats .k { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .stats .v { font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  .cols { display:grid; grid-template-columns:minmax(320px,400px) 1fr; gap:22px; align-items:start; }
+  @media (max-width:860px){ .cols{ grid-template-columns:1fr; } }
+
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .panel h2 { font-size:15px; margin-bottom:14px; }
+  label { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:14px 0 5px; }
+  label:first-of-type { margin-top:0; }
+  input[type=text], textarea {
+    width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:6px;
+    padding:8px 10px; font-family:var(--mono); font-size:12.5px;
+  }
+  textarea { resize:vertical; min-height:64px; }
+  .hint { color:var(--muted); font-size:11.5px; margin-top:4px; }
+
+  .row { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  button {
+    border:1px solid var(--line-strong); background:var(--surface-2); color:var(--ink);
+    padding:9px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px;
+  }
+  button:hover { border-color:var(--hold); }
+  button.primary { background:var(--hold); border-color:var(--hold); color:#fff; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .confirm { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:12.5px; color:var(--ink-2); }
+
+  .meter { height:5px; background:var(--surface-2); border-radius:3px; overflow:hidden; margin-top:7px; border:1px solid var(--line); }
+  .meter i { display:block; height:100%; background:var(--hold); }
+  .taskbox { font-family:var(--mono); font-size:12px; background:var(--surface-2); border:1px solid var(--line);
+             border-radius:6px; padding:10px; white-space:pre-wrap; word-break:break-word; }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:15px 17px; margin-bottom:12px; }
+  .card.ok { border-left:3px solid var(--live); }
+  .card.held { border-left:3px solid var(--drop); }
+  .card header { border:0; padding:0; display:flex; align-items:baseline; gap:10px; }
+  .who { font-weight:700; }
+  .num { font-family:var(--mono); font-size:12px; color:var(--muted); }
+  .verdict { margin-left:auto; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+             padding:3px 8px; border-radius:4px; }
+  .verdict.ok { background:var(--live-w); color:var(--live); }
+  .verdict.held { background:var(--drop-w); color:var(--drop); }
+
+  .field { display:grid; grid-template-columns:1fr; gap:3px; padding:10px 0; border-top:1px solid var(--line); }
+  .field .name { font-family:var(--mono); font-size:12px; }
+  .field .val { font-weight:600; }
+  .field .val.null { color:var(--drop); font-family:var(--mono); font-weight:400; }
+  .quote { color:var(--ink-2); font-size:12.5px; border-left:2px solid var(--line-strong); padding-left:9px; margin-top:3px; }
+  .why { color:var(--muted); font-size:12px; margin-top:3px; }
+  .tag { font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
+
+  .board { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:6px 17px 12px; margin-bottom:14px; }
+  .board h2 { font-size:15px; margin:12px 0 4px; }
+  .liverow { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:12px; padding:9px 0; border-top:1px solid var(--line); }
+  .liverow .who { font-weight:600; font-size:13.5px; }
+  .liverow .detail { color:var(--muted); font-size:12px; margin-top:2px; }
+  .clock { font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink-2); }
+  .phase { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+           padding:3px 8px; border-radius:4px; background:var(--surface-2); color:var(--muted); min-width:76px; text-align:center; }
+  .phase.menu    { background:var(--surface-2); color:var(--ink-2); }
+  .phase.holding { background:var(--hold-w); color:var(--hold); }
+  .phase.answered,.phase.asking { background:var(--live-w); color:var(--live); }
+  .speed { font-family:var(--mono); font-size:11px; color:var(--muted); padding:8px 0 2px; }
+  .summary { display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; background:var(--surface);
+             border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
+  .summary .big { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .summary .lbl { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+  .summary .unit { display:flex; align-items:baseline; gap:7px; }
+  .summary .unit.held .big, .summary .unit.held .lbl { color:var(--drop); }
+  .summary .unit.ok .big { color:var(--live); }
+  .summary .sep { width:1px; align-self:stretch; background:var(--line); }
+  .card.held { border-left:3px solid var(--drop); box-shadow:inset 0 0 0 1px var(--drop); }
+  .card.held > header .who::after { content:"— answer withheld"; margin-left:8px; font-weight:500; font-size:12px; color:var(--drop); }
+  .empty { color:var(--muted); padding:26px 4px; }
+  .err { background:var(--drop-w); border:1px solid var(--drop); color:var(--drop); padding:11px 13px; border-radius:7px; margin-bottom:12px; font-size:13px; }
+  .notice { background:var(--hold-w); border-left:3px solid var(--hold); padding:11px 14px; border-radius:0 7px 7px 0; font-size:12.5px; margin-bottom:16px; }
+  footer { margin-top:34px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="lamp" aria-hidden="true"></span>
+    <div>
+      <div class="wordmark">HOLDLINE<span>.</span></div>
+      <div class="tagline">Discharge planning — finding a bed, and only trusting the answers the call established.</div>
+    </div>
+    <span class="badge" id="mode">checking…</span>
+  </header>
+
+  <div class="stats" id="stats" hidden>
+    <div><span class="k">Seconds on hold absorbed</span><span class="v" id="s-hold">0</span></div>
+    <div><span class="k">Facts stored</span><span class="v" id="s-facts">0</span></div>
+    <div><span class="k">Calls avoided by cache</span><span class="v" id="s-avoided">0</span></div>
+    <div><span class="k">Routes known</span><span class="v" id="s-routes">0</span></div>
+  </div>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>The batch</h2>
+
+      <label for="goal">Question</label>
+      <textarea id="goal">Ask if you have a bed free this week for a hospital discharge, and what level of nursing care you can take.</textarea>
+
+      <label for="hint">Menu routing hint</label>
+      <input type="text" id="hint" value="Reach the admissions desk.">
+      <div class="hint">Dropped first if the task exceeds 255 characters.</div>
+
+      <label for="batch">Batch id</label>
+      <input type="text" id="batch" value="discharge-ward6-88431">
+      <div class="hint">The authorizing record. Never a timestamp — it is what makes a re-run idempotent.</div>
+
+      <label for="targets">Care homes, one per line: id, phone, name</label>
+      <textarea id="targets" rows="4">home-oakfield, +15550199001, Oakfield Care Home
+home-riverside, +15550199007, Riverside Nursing
+home-belmont, +15550199012, Belmont House
+home-typo, +1 555 019 9002, Row with a typo</textarea>
+
+      <label for="fields">Fields, one per line: name | ask phrases, comma separated</label>
+      <textarea id="fields" rows="3">bed_available | bed free, a bed available, any availability
+nursing_level | level of nursing care, level of care, nursing care</textarea>
+
+      <div class="row">
+        <button id="plan">Plan</button>
+        <button id="run" class="primary" disabled>Place calls</button>
+      </div>
+      <div class="confirm">
+        <input type="checkbox" id="confirm">
+        <label for="confirm" style="margin:0; text-transform:none; letter-spacing:0; font-family:var(--sans); font-size:12.5px; color:var(--ink-2);">
+          I understand this places calls. Real people answer them.
+        </label>
+      </div>
+    </section>
+
+    <section>
+      <div id="planout"></div>
+      <div id="results"><div class="empty">A ward is holding a bed for a patient who is ready to leave. Plan the batch to see what will be asked, then place the calls.</div></div>
+    </section>
+  </div>
+
+  <footer>
+    Every number shown is masked. Fields the transcript does not support are withheld, whatever the model reported.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var simulated = true;
+
+  function esc(s) {
+    return String(s === null || s === undefined ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function parseTargets() {
+    return $("targets").value.split("\n").map(function (line) {
+      var p = line.split(",").map(function (x) { return x.trim(); });
+      if (!p[0]) return null;
+      var t = { subjectId: p[0], phone: p[1] || "" };
+      if (p[2]) t.label = p.slice(2).join(", ");
+      return t;
+    }).filter(Boolean);
+  }
+
+  function parseFields() {
+    return $("fields").value.split("\n").map(function (line) {
+      if (!line.trim()) return null;
+      var parts = line.split("|");
+      var name = (parts[0] || "").trim();
+      var asks = (parts[1] || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+      if (!name || !asks.length) return null;
+      return { name: name, asks: asks, required: true };
+    }).filter(Boolean);
+  }
+
+  function body(extra) {
+    var b = {
+      goal: $("goal").value,
+      routingHint: $("hint").value,
+      batchId: $("batch").value,
+      workflow: "console",
+      intent: "ask",
+      targets: parseTargets(),
+      fields: parseFields()
+    };
+    for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
+    return b;
+  }
+
+  function post(path, payload) {
+    return fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); });
+  }
+
+  function showError(where, message) {
+    $(where).innerHTML = '<div class="err">' + esc(message) + "</div>";
+  }
+
+  function refreshState() {
+    return fetch("/api/state").then(function (r) { return r.json(); }).then(function (s) {
+      simulated = s.mode !== "live";
+      var badge = $("mode");
+      badge.textContent = simulated ? "simulation" : "live — real calls";
+      badge.className = simulated ? "badge" : "badge live";
+      $("s-hold").textContent = s.secondsAbsorbed || 0;
+      $("s-facts").textContent = (s.ledger && s.ledger.facts) || 0;
+      $("s-avoided").textContent = (s.ledger && s.ledger.servedFresh) || 0;
+      $("s-routes").textContent = s.routesKnown || 0;
+      // A row of zeros is the least useful thing the page could lead with.
+      $("stats").hidden = !(s.routesKnown || (s.ledger && s.ledger.facts));
+
+      var n = $("notice");
+      if (simulated) {
+        n.hidden = false;
+        n.innerHTML = "<strong>Simulation.</strong> No telephone is involved. Responses are produced by a local fake transport that reproduces CALL-E's documented behaviour, including a call that returns a confident answer to a question it never asked. Treat anything here as a rehearsal, never as a finding.";
+      } else {
+        n.hidden = false;
+        n.innerHTML = "<strong>Live.</strong> Placing calls will dial real numbers and be billed per call.";
+      }
+    });
+  }
+
+  function renderPlan(p) {
+    if (p.error) { showError("planout", typeof p.error === "string" ? p.error : (p.error.message || "Plan failed.")); $("run").disabled = true; return; }
+    var pctRaw = (p.used / p.budget) * 100;
+    var pct = Math.max(0, Math.min(100, pctRaw));
+    var rows = (p.dialable || []).map(function (t) {
+      return '<div class="field"><div class="name">' + esc(t.subjectId) +
+        ' <span class="num">' + esc(t.phone) + "</span></div>" +
+        (t.label ? '<div class="why">' + esc(t.label) + "</div>" : "") +
+        (t.routeHint ? '<div class="quote">' + esc(t.routeHint) + "</div>" : "") + "</div>";
+    }).join("");
+
+    var rejected = (p.rejected || []).map(function (r) {
+      return '<div class="field"><div class="name">' + esc(r.subjectId) +
+        ' <span class="num">' + esc(r.maskedPhone) + '</span></div>' +
+        '<div class="why">refused: ' + esc(r.reason) + "</div></div>";
+    }).join("");
+
+    $("planout").innerHTML =
+      '<div class="panel" style="margin-bottom:16px">' +
+        "<h2>Compiled task</h2>" +
+        '<div class="taskbox">' + esc(p.task) + "</div>" +
+        '<div class="meter"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="hint">' + p.used + " of " + p.budget + " characters" +
+          (p.dropped && p.dropped.length ? " — dropped: " + esc(p.dropped.join(", ")) : "") + "</div>" +
+        '<label style="margin-top:16px">Idempotency key</label>' +
+        '<div class="taskbox">' + esc(p.idempotencyKey) + "</div>" +
+        '<div class="hint">Derived from the batch id, not from the moment. Re-running fetches the same call.</div>' +
+        '<label style="margin-top:16px">Will be called</label>' + (rows || '<div class="why">nothing dialable</div>') +
+        (rejected ? '<label style="margin-top:16px">Refused before dialing</label>' + rejected : "") +
+      "</div>";
+
+    $("run").disabled = !(p.dialable && p.dialable.length) || !$("confirm").checked;
+  }
+
+  $("confirm").addEventListener("change", function () {
+    var planned = $("planout").innerHTML.indexOf("Compiled task") !== -1;
+    $("run").disabled = !planned || !$("confirm").checked;
+  });
+
+  $("plan").addEventListener("click", function () {
+    $("planout").innerHTML = '<div class="empty">Planning…</div>';
+    post("/api/plan", body({})).then(renderPlan).catch(function (e) { showError("planout", String(e)); });
+  });
+
+  function mmss(sec) {
+    var s = Math.max(0, Math.round(sec));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function startBoard(plan) {
+    var rows = (plan.dialable || []).map(function (t) {
+      return '<div class="liverow" id="row-' + esc(t.subjectId) + '">' +
+        '<div><div class="who">' + esc(t.label || t.subjectId) + ' <span class="num">' + esc(t.phone) + "</span></div>" +
+        '<div class="detail" data-detail>waiting to dial</div></div>' +
+        '<span class="clock" data-clock>0:00</span>' +
+        '<span class="phase" data-phase>queued</span>' +
+      "</div>";
+    }).join("");
+
+    $("results").innerHTML =
+      '<div class="board" id="board"><h2>On the line</h2>' +
+      '<div class="speed">Call clock, replayed from the transcript at ' + esc(plan.playbackSpeed) + '× real time</div>' +
+      rows + "</div><div id=\"outcome\"><div id=\"summary\"></div><div id=\"cards\"></div></div>";
+  }
+
+  function updateRow(ev) {
+    var row = document.getElementById("row-" + ev.subjectId);
+    if (!row) return;
+    row.querySelector("[data-clock]").textContent = mmss(ev.at);
+    var phase = row.querySelector("[data-phase]");
+    phase.textContent = ev.phase;
+    phase.className = "phase " + ev.phase;
+    row.querySelector("[data-detail]").textContent = ev.detail || "";
+  }
+
+  function appendVerdict(v) {
+    var held = v.verdict !== "verified";
+    tally.places += 1;
+    (v.fields || []).forEach(function (f) {
+      var value = v.result ? v.result[f.field] : null;
+      if (value === null || value === undefined) tally.withheld += 1;
+      else tally.established += 1;
+    });
+    renderSummary();
+    var fields = (v.fields || []).map(function (f) {
+      var value = v.result ? v.result[f.field] : null;
+      var isNull = value === null || value === undefined;
+      return '<div class="field">' +
+        '<div class="name">' + esc(f.field) + "</div>" +
+        '<div class="val' + (isNull ? " null" : "") + '">' + (isNull ? "withheld" : esc(value)) + "</div>" +
+        (f.supportingTurn ? '<div class="quote">“' + esc(f.supportingTurn) + '”</div>' : "") +
+        '<div class="why">' + esc(f.verdict) + " — " + esc(f.note) + "</div>" +
+      "</div>";
+    }).join("");
+
+    var card = '<div class="card ' + (held ? "held" : "ok") + '">' +
+      "<header>" +
+        '<span class="who">' + esc(v.label || v.subjectId) + "</span>" +
+        '<span class="num">' + esc(v.phone) + "</span>" +
+        '<span class="verdict ' + (held ? "held" : "ok") + '">' + esc(v.verdict) + "</span>" +
+      "</header>" + fields +
+      (v.reasons && v.reasons.length
+        ? '<div class="field"><div class="tag">why it was withheld</div>' +
+          v.reasons.map(function (x) { return '<div class="why">' + esc(x) + "</div>"; }).join("") + "</div>"
+        : "") +
+    "</div>";
+    document.getElementById("cards").insertAdjacentHTML("beforeend", card);
+  }
+
+  // Running tally, so the outcome reads in one glance instead of needing every
+  // card read end to end.
+  var tally = { places: 0, established: 0, withheld: 0 };
+
+  function renderSummary() {
+    var unit = function (cls, big, label) {
+      return '<div class="unit ' + cls + '"><span class="big">' + big + '</span>' +
+             '<span class="lbl">' + label + "</span></div>";
+    };
+    document.getElementById("summary").innerHTML =
+      '<div class="summary">' +
+        unit("", tally.places, tally.places === 1 ? "place called" : "places called") +
+        '<span class="sep"></span>' +
+        unit("ok", tally.established, "answers established") +
+        '<span class="sep"></span>' +
+        unit("held", tally.withheld, tally.withheld === 1 ? "answer withheld" : "answers withheld") +
+      "</div>";
+  }
+
+  function handleEvent(ev) {
+    if (ev.type === "plan") { tally = { places: 0, established: 0, withheld: 0 }; startBoard(ev); }
+    else if (ev.type === "phase") updateRow(ev);
+    else if (ev.type === "verdict") appendVerdict(ev);
+    else if (ev.type === "unresolved") {
+      document.getElementById("cards").insertAdjacentHTML("beforeend",
+        '<div class="err"><strong>Unresolved outcome.</strong> ' +
+        esc((ev.classification && ev.classification.reason) || "") + "<br><br>" + esc(ev.note || "") + "</div>");
+    } else if (ev.type === "error") {
+      showError("results", (ev.error && ev.error.message) || "Run failed.");
+    } else if (ev.type === "done") {
+      refreshState();
+    }
+  }
+
+  async function runStreaming() {
+    var res = await fetch("/api/run-stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body({ confirm: true }))
+    });
+
+    if (!res.ok || !res.body) {
+      var problem = await res.json().catch(function () { return {}; });
+      showError("results", problem.error || problem.refused || "Run failed.");
+      return;
+    }
+
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = "";
+    for (;;) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (var i = 0; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        try { handleEvent(JSON.parse(lines[i])); } catch (e) { /* partial line */ }
+      }
+    }
+  }
+
+  $("run").addEventListener("click", function () {
+    if (!$("confirm").checked) return;
+    $("results").innerHTML = '<div class="empty">Dialing…</div>';
+    $("run").disabled = true;
+    runStreaming()
+      .catch(function (e) { showError("results", String(e)); })
+      .then(function () { $("run").disabled = !$("confirm").checked; });
+  });
+
+  refreshState();
+})();
+</script>
+</body>
+</html>

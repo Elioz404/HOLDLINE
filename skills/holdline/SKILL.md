@@ -85,11 +85,13 @@ reconcile one whose outcome was unknown.
 | `verified` | The agent raised the topic and a usable answer came back. |
 | `asked_but_unclear` | The agent asked; the answer was not usable. |
 | `unattributed` | Some question was asked and answered, but none of this field's probes match it, so the answer cannot be pinned here. |
+| `attributed` | No probe matched, but exactly one question went unclaimed and this was the only unmatched field, so the answer can only have come from it. Weaker evidence than a match, and reported as such. Only appears when elimination is enabled. |
 | `never_asked` | Nothing was asked that this value could answer. If a value came back anyway, it is flagged. |
 | `no_transcript` | No transcript, so nothing could be checked. |
 
-A batch verdict is `verified` only when every required field is `verified` and
-completion confidence clears the floor. There is no partial pass.
+A batch verdict is `verified` only when every required field is `verified` —
+or `attributed`, if the caller enabled elimination — and completion confidence
+clears the floor. There is no partial pass.
 
 `never_asked` with a value present is the case worth surfacing to the user: the
 call returned something the conversation does not support.
@@ -106,6 +108,10 @@ the words the agent would actually say, not the field name.
 Matching is lexical, so a question phrased in words no probe contains reads as
 `unattributed` and is withheld. That is the safe direction, but it costs a real
 answer — see `references/probes.md` before writing them for a new workflow.
+
+Every result carries `unclaimedQuestions`: the questions the agent asked that no
+probe claimed, verbatim. If one of them is the question you meant to ask, add
+its wording to that field. That is the fix; elimination is the fallback.
 
 ## Side effects and cancellation
 

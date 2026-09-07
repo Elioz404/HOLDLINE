@@ -13,9 +13,12 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "probe": "tsx src/probe/validate-traversal.ts",
+    "probe": "tsx --env-file-if-exists=.env src/probe/validate-traversal.ts",
     "eval": "tsx src/eval/run.ts",
-    "mcp": "tsx src/mcp/run.ts"
+    "mcp": "tsx --env-file-if-exists=.env src/mcp/run.ts",
+    "console": "tsx --env-file-if-exists=.env src/console/run.ts",
+    "start": "tsx --env-file-if-exists=.env src/console/run.ts",
+    "screenshots": "tsx src/tools/screenshots.ts"
   },
   "dependencies": {
     "@call-e/calle": "^0.7.0",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "puppeteer-core": "^25.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

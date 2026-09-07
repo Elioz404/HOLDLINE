@@ -17,6 +17,7 @@
  * a safety gate is the same as not having one.
  *
  * Usage
+ *   npm run probe -- --check            confirm the credentials, place no call
  *   npm run probe                       plan only, prints the compiled task
  *   npm run probe -- --fixture <path>   replay a saved run, no network
  *   npm run probe -- --live             place one real call after confirmation
@@ -28,9 +29,10 @@ import { readFile } from "node:fs/promises";
 import { stdin, stdout } from "node:process";
 import path from "node:path";
 
-import { CalleClient, type Call } from "@call-e/calle";
+import { CalleAPIError, CalleClient, type Call } from "@call-e/calle";
 
 import { checkPhone, maskPhone } from "../core/phone.js";
+import { regionForNumber, regionsSpeaking } from "../core/regions.js";
 import { redact, redactError } from "../core/redact.js";
 import { classifyFailure } from "../core/outcome.js";
 import { deriveIdempotencyKey } from "../core/idempotency.js";
@@ -79,22 +81,63 @@ const RESULT_SCHEMA = {
 
 interface Args {
   live: boolean;
+  check: boolean;
+  locale: string | null;
+  region: string | null;
   fixture: string | null;
   to: string | null;
   goal: string | null;
 }
 
 function parseArgs(argv: readonly string[]): Args {
-  const args: Args = { live: false, fixture: null, to: null, goal: null };
+  const args: Args = { live: false, check: false, locale: null, region: null, fixture: null, to: null, goal: null };
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
     const next = argv[i + 1];
     if (flag === "--live") args.live = true;
+    else if (flag === "--check") args.check = true;
     else if (flag === "--fixture" && next) { args.fixture = next; i += 1; }
     else if (flag === "--to" && next) { args.to = next; i += 1; }
     else if (flag === "--goal" && next) { args.goal = next; i += 1; }
+    else if (flag === "--locale" && next) { args.locale = next; i += 1; }
+    else if (flag === "--region" && next) { args.region = next; i += 1; }
   }
   return args;
+}
+
+/**
+ * Confirm the credentials work without spending a call.
+ *
+ * Fetching a call id that cannot exist costs nothing and tells us what we need:
+ * a 401 means the key is wrong, a 404 means the key is fine and the id simply
+ * is not there. Worth doing before someone types LIVE and burns one of twenty
+ * free calls finding out their key is bad.
+ */
+async function checkCredentials(apiKey: string): Promise<number> {
+  const client = new CalleClient({ apiKey });
+  try {
+    await client.calls.get("call_holdline_auth_probe_does_not_exist");
+    console.log("Unexpected: that call id resolved. Credentials work.");
+    return 0;
+  } catch (error) {
+    const classification = classifyFailure(error);
+    const status = error instanceof CalleAPIError ? error.status : null;
+
+    if (status === 404) {
+      console.log("Credentials accepted. The API answered 404 for a call id that does not exist,");
+      console.log("which is exactly right. No call was placed and nothing was billed.");
+      return 0;
+    }
+    if (status === 401 || status === 403) {
+      console.error("Credentials rejected. Check CALLE_API_KEY in .env.");
+      console.error(JSON.stringify(redactError(error), null, 2));
+      return 2;
+    }
+    console.error("Could not confirm credentials.");
+    console.error(JSON.stringify(redactError(error), null, 2));
+    console.error(`\nclassification  ${classification.class} (${classification.code})`);
+    return 3;
+  }
 }
 
 function buildTask(goal: string): ReturnType<typeof compileTask> {
@@ -209,6 +252,16 @@ async function confirmLive(to: string): Promise<boolean> {
 
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
+
+  if (args.check) {
+    const apiKey = process.env["CALLE_API_KEY"];
+    if (!apiKey) {
+      console.error("CALLE_API_KEY is not set. Copy .env.example to .env and fill it in.");
+      return 2;
+    }
+    return checkCredentials(apiKey);
+  }
+
   const goal =
     args.goal ??
     "Reach a representative and confirm which department you have been connected to.";
@@ -237,6 +290,30 @@ async function main(): Promise<number> {
     return 2;
   }
 
+  // Refuse an unreachable region here rather than learning it from a 422.
+  // The provider is the authority; this is a courtesy, so it names what would
+  // work instead of only saying no.
+  const region = regionForNumber(check.e164);
+  if (!region) {
+    console.error(`\n${maskPhone(check.e164)} is not in a region CALL-E can call.`);
+    console.error("Argentina (+54), for one, is not on the supported list in any language.");
+    console.error("\nSpanish-language calls are supported here:");
+    for (const option of regionsSpeaking("Spanish")) {
+      console.error(`  ${option.country} (${option.dialing}) — ${option.line} line`);
+    }
+    console.error("\nFull list: https://github.com/CALLE-AI/call-e-integrations#supported-regions-and-languages");
+    return 2;
+  }
+
+  console.log(`\nregion             ${region.country} (${region.code}) — ${region.line} line`);
+  console.log(`languages          ${region.languages.join(", ")}`);
+  if (!args.locale && !region.languages.includes("English")) {
+    console.error(
+      `\n${region.country} does not support English. Pass --locale, for example --locale ${region.languages[0]?.slice(0, 2).toLowerCase()}-${region.code}.`,
+    );
+    return 2;
+  }
+
   const apiKey = process.env["CALLE_API_KEY"];
   if (!apiKey) {
     console.error("\nCALLE_API_KEY is not set. Copy .env.example to .env and fill it in.");
@@ -260,7 +337,11 @@ async function main(): Promise<number> {
     const call = await client.calls.createAndWait(
       {
         task: compiled.task,
-        recipient: { phone: check.e164 },
+        recipient: {
+          phone: check.e164,
+          ...(args.locale ? { locale: args.locale } : {}),
+          ...(args.region ? { region: args.region } : { region: region.code }),
+        },
         resultSchema: RESULT_SCHEMA as unknown as Record<string, unknown>,
         metadata: { holdline_probe: label },
       },
