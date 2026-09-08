@@ -150,6 +150,11 @@ automated customer-service lines. **No transcript, recording, call id or other
 call artifact from them is included in this contribution or kept in the linked
 repository.** What follows is a summary of what they changed, in our own words.
 
+The linked repository's public history was rewritten on September 7, 2026 to
+remove these artifacts from every commit. What may still render at old direct
+links is GitHub retention of unreachable objects; a purge request for them has
+been submitted to GitHub Support.
+
 They confirmed CALL-E reaches and transcribes real phone trees, and that an
 agent can state a purpose and have an IVR confirm and route it. They also
 disproved two things this project had written down as true: that CALL-E labels
