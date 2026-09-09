@@ -512,12 +512,15 @@ history was written during the submission period, in this order:
 | Operations console and hardening pass | `0586c01` |
 | Seven live calls, and the three assumptions they disproved | 2026-09-07 |
 | Prose non-answer class added to the corpus, measured, then fixed | `937d1a8` |
-| An eighth live call found the masking gap below, and closed it | 2026-09-09 |
-| A later call found the gate crediting an unasked field; measured, then fixed | 2026-09-09 |
-| The first live batch retired the fan-out architecture; one call per target now | 2026-09-09 |
+| An eighth live call found the masking gap below, and closed it | `b491f16` |
+| A later call found the gate crediting an unasked field; measured, then fixed | `b491f16` |
+| The first live batch retired the fan-out architecture; one call per target now | `c56148c` |
+| That finding, packaged so anyone can reproduce it | `7fb0dd3` |
 
-The last two rows are the ones worth reading: the gate's worst defect was found
-by a real telephone, not by the suite, and it was measured before it was fixed.
+The last four rows are the ones worth reading. Each one is a defect a real
+telephone found that neither the suite nor the corpus could see, and each was
+measured before it was fixed. Two of them share a commit because they were
+found in the same hour.
 
 `submission/` holds the contribution to
 [`awesome-phone-call-agents`](https://github.com/CALLE-AI/awesome-phone-call-agents):

@@ -98,7 +98,59 @@ local output, reproducible from one command.
 
 ## Publishing
 
-- **Public**, not unlisted — the rules say publicly visible.
-- Title: `HOLDLINE — phone answers you can actually trust`
-- Description: link the repository and the pull request, and say in the first
-  two lines that the console segment is simulated.
+- **Public**, not unlisted — the rules say *"made publicly visible"*.
+- Upload `docs/video/holdline.srt` as the English caption track. The burned-in
+  captions stay regardless, so it reads with the sound off either way.
+- Thumbnail: the frame at 1:29, the three real calls. It is the only frame that
+  tells the story on its own.
+- Category: Science & Technology. Language: English.
+- Tags: `CALL-E`, `voice agents`, `AI phone agent`, `hallucination`, `evidence`,
+  `MCP`, `TypeScript`, `healthcare`, `hackathon`.
+
+### Title
+
+```
+HOLDLINE — only the answers the call actually established
+```
+
+### Description
+
+The second line is the simulation notice on purpose: YouTube truncates there,
+so a judge who never expands the description still knows which part is
+simulated. The organisations called are not named — the rules bar third-party
+trademarks from the video, and the failure on screen is the platform's
+`task_completed: true`, not theirs.
+
+```
+A phone agent can return a confident, schema-valid answer to a question it never asked. HOLDLINE checks every field against what the agent actually said, and withholds the rest.
+
+The console segment runs against a local simulator and says SIMULATION on screen throughout. The three calls from 1:29 are real, placed through CALL-E.
+
+CHAPTERS
+0:00  The problem
+0:21  The plan — 255 characters, a malformed number refused before dialing
+0:48  On the line — three places at once (simulated)
+1:05  The verdicts — one established, one withheld
+1:29  Three real calls
+2:11  The measured numbers
+
+THE PROBLEM
+A patient is medically ready to leave hospital and cannot, because nobody has confirmed a bed. A discharge coordinator works a phone list — roughly four hours a week. The expensive failure is not the hours. It is a "yes, we have a bed" the call never actually established.
+
+WHAT THE REAL CALLS SHOW
+Three published automated lines, called together. CALL-E returned the same confident answer for all three — 0.86, 0.88, 0.82. Two were established by the conversation. On the third, the agent never asked the question, and the platform answered anyway. That one is withheld, with the reason.
+
+NO TRANSCRIPT APPEARS IN THIS VIDEO
+The capture is taken with a flag that prints each verdict and omits the sentence behind it. Real calls leave no transcript in the repository, and this video is committed to it.
+
+MEASURED, INCLUDING THE COST
+400 labelled cases. Everything the gate catches, and the 50 real answers it withholds to catch them, print on the same screen every run. A benchmark containing only the cases a system handles is marketing.
+
+Engine, Evidence Gate, MCP server, 157 tests that place no calls and read no credentials:
+https://github.com/Elioz404/HOLDLINE
+
+Pull request:
+https://github.com/CALLE-AI/awesome-phone-call-agents/pull/353
+
+Built for CALL-E: Your Code Is Calling.
+```
