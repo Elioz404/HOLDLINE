@@ -406,6 +406,22 @@ does not encode the original length. It does not preserve the country code — a
 country code is one to three digits and this keeps two. A string that is not
 valid E.164 is replaced with `[redacted-phone]` rather than passed through.
 
+### Deploying it, and why a deployed one cannot dial
+
+`render.yaml` puts the console up as a public instance. It carries no API key —
+and that is not what keeps it safe. `src/console/run.ts` locks any console
+bound off loopback into simulation, whatever else is set:
+
+```
+HOLDLINE_CONSOLE_HOST=0.0.0.0 HOLDLINE_CONSOLE_LIVE=1 CALLE_API_KEY=... node dist/console/run.js
+  → simulation, and locked to it: this console is reachable off this machine
+```
+
+Loopback keeps the old rule: live needs `HOLDLINE_CONSOLE_LIVE=1` and a key
+together. The reasoning is that "we remembered not to set the key" is not a
+safety property. A visitor to a public instance cannot spend credits or ring
+anybody, because the code will not let the two states coexist.
+
 ### Developing without credentials
 
 `src/testing/fake-calle.ts` is not a stub. It implements the CALL-E wire

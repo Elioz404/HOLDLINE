@@ -1,0 +1,23 @@
+# Deploys the operations console as a public, simulation-only instance.
+#
+# There is deliberately no CALLE_API_KEY here, and it would not matter if there
+# were: `src/console/run.ts` locks any console bound off loopback into
+# simulation. A visitor cannot spend credits or ring anybody, by construction
+# rather than by configuration.
+#
+# The free plan sleeps after inactivity, so the first request after a quiet
+# period takes a moment to wake.
+services:
+  - type: web
+    name: holdline-console
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/console/run.js
+    envVars:
+      # Render injects PORT. This is the one setting the console needs, and it
+      # is also what puts the instance into locked simulation.
+      - key: HOLDLINE_CONSOLE_HOST
+        value: 0.0.0.0
+      - key: NODE_VERSION
+        value: "20"
