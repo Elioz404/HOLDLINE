@@ -40,7 +40,7 @@ the other two are not printed: a real call leaves no transcript here.*
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and
 route cache, an MCP server, an operations console that needs no API key, and
-157 tests that place no calls and read no credentials. Fifteen live calls have
+157 tests that place no calls and read no credentials. Twenty-three live calls have
 been placed through CALL-E. Four of them found defects that neither the suite
 nor the corpus could see, and one of them took away the engine’s central design
 decision.
@@ -83,6 +83,7 @@ matter how confident the model sounded.
 | Idempotency | `src/core/idempotency.ts` | Derives keys from the authorizing business record. Records issued keys so a replay is distinguishable from a fresh dispatch. |
 | Phone handling | `src/core/phone.ts` | Strict E.164 validation, placeholder and emergency-line refusal, masking. |
 | Output redaction | `src/core/redact.ts` | Masks phone numbers and strips secrets from every outgoing value, including echoed metadata and error payloads. |
+| Fan-out probe | `src/probe/fanout-transcripts.ts` | Runs both arms of the transcript finding against the same numbers and prints the counts. Keeps counts only. |
 | Traversal probe | `src/probe/validate-traversal.ts` | Places one real call to find out whether CALL-E gets through a phone menu, and writes the run down. |
 | Replay | `src/tools/replay.ts` | Puts a call that already happened back through the gate, so a transcript can be re-judged with better probes without dialing anyone again. |
 
@@ -531,7 +532,7 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**Fifteen live calls have been placed**, on 2026-09-07 and 2026-09-09,
+**Twenty-three live calls have been placed**, on 2026-09-07 and 2026-09-09,
 to published automated customer-service lines. **No transcript, recording or
 call artifact from them is kept in this repository.** What follows is what they
 changed, in our own words:
@@ -627,10 +628,22 @@ one call with three recipients:
 | One dispatch, three recipients | 0, 0, 0 | everything withheld |
 | Three dispatches, one recipient each | 7, 15, 7 | two verified, one withheld |
 
-That is the whole finding. `transcript_turns` is returned for a call with one
-recipient and not for a call with several, and nothing in the API reference
-says so. It is not latency — the batch was re-fetched later and the turns never
-arrived.
+Then we ran both arms again, together, an hour and a half later:
+
+| Same three numbers, same account | One call, three recipients | Three calls, one recipient each |
+| --- | --- | --- |
+| First run | 0, 0, 0 | 7, 15, 7 |
+| Second run, both arms back to back | 0, 0, 0 | 8, 14, 6 |
+
+That is the whole finding, and it reproduces. `transcript_turns` is returned for
+a call with one recipient and not for a call with several, and nothing in the
+API reference says so. It is not latency — the first batch was re-fetched later
+and the turns never arrived.
+
+`npm run probe:fanout` is the second run, packaged. It dials each number once
+per arm and prints that table. It keeps the counts and nothing else: no
+transcript, no call id, no structured result — a probe that cannot create the
+kind of artifact this repository has already had to scrub out of its history.
 
 The engine now places one call per target. The promise on the outside is
 unchanged: one question, many places, a verdict each, one authorizing record.

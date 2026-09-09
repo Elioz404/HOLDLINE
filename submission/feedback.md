@@ -105,12 +105,25 @@ was not a timing artifact: the call was re-fetched later and the turns never
 appeared.
 
 Twenty-five minutes later, the same three numbers were dialled again from the
-same account, one recipient per call:
+same account, one recipient per call. We then ran both arms again, back to
+back, an hour and a half after that:
 
-| Same three numbers, same afternoon | `transcript_turns` returned |
-| --- | --- |
-| One call, three recipients | 0, 0, 0 |
-| Three calls, one recipient each | 7, 15, 7 |
+| Same three numbers, same account | One call, three recipients | Three calls, one recipient each |
+| --- | --- | --- |
+| First run, 19:19 and 19:42 UTC | 0, 0, 0 | 7, 15, 7 |
+| Second run, 20:53 UTC, both arms together | 0, 0, 0 | 8, 14, 6 |
+
+**You can run this yourself.** The second run is a single command in our
+repository, and it keeps only the counts — no transcript, no call id, no
+structured result:
+
+```bash
+npm run probe:fanout -- --to +1... --to +1... --to +1... --live
+```
+
+It dials each number once per arm, waits for both to settle, and prints the
+table above. Six calls. If it does not reproduce, it says so and prints both
+arms anyway.
 
 **Why it matters more than it looks.** `recipient_result_schema` is documented
 as the primitive for batch work — *"useful for batch calls where each recipient

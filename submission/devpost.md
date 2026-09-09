@@ -190,8 +190,11 @@ per target:
 | One dispatch, three recipients | 0, 0, 0 | everything withheld |
 | Three dispatches, one recipient each | 7, 15, 7 | two verified, one withheld |
 
-A multi-recipient call does not return transcript turns and a single-recipient
-call does, and nothing in the API reference says so. We rebuilt the dispatch:
+Then we packaged it as a probe and ran both arms again ninety minutes later,
+back to back: `0, 0, 0` against `8, 14, 6`. A multi-recipient call does not
+return transcript turns and a single-recipient call does, it reproduces, and
+nothing in the API reference says so. `npm run probe:fanout` runs the
+experiment and keeps only the counts. We rebuilt the dispatch:
 one call per target, sent together, each deriving its own idempotency key from
 the same authorizing record. The promise is unchanged — one question, many
 places, a verdict each — and reconciling one target can no longer re-dial the
@@ -221,7 +224,7 @@ share the budget. We compile the task from prioritised segments and drop the
 lowest first — and fail loudly rather than truncate a required instruction and
 ship a call that asks half a question.
 
-**Fifteen real calls broke things I had written down as true.** By the time an
+**Twenty-three real calls broke things I had written down as true.** By the time an
 account existed the whole engine was built against the local fake, so the calls
 were a test of my assumptions as much as of the platform. No transcript,
 recording or call artifact from any of them is kept in the repository — what

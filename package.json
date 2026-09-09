@@ -24,7 +24,8 @@
     "video": "tsx src/tools/video.ts",
     "narrate": "tsx src/tools/narration.ts",
     "mixdown": "tsx src/tools/mixdown.ts",
-    "gallery": "tsx src/tools/gallery.ts"
+    "gallery": "tsx src/tools/gallery.ts",
+    "probe:fanout": "tsx --env-file-if-exists=.env src/probe/fanout-transcripts.ts"
   },
   "dependencies": {
     "@call-e/calle": "^0.7.0",

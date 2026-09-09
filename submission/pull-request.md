@@ -146,7 +146,7 @@ contract.
 
 ## Note on live calls
 
-Fifteen live calls were placed on 2026-09-07 and 2026-09-09 to published
+Twenty-three live calls were placed on 2026-09-07 and 2026-09-09 to published
 automated customer-service lines. **No transcript, recording, call id or other
 call artifact from them is included in this contribution or kept in the linked
 repository.** What follows is a summary of what they changed, in our own words.
