@@ -45,6 +45,13 @@ been placed through CALL-E. Four of them found defects that neither the suite
 nor the corpus could see, and one of them took away the engine’s central design
 decision.
 
+**Try it without installing anything:**
+[holdline-j0ku.onrender.com](https://holdline-j0ku.onrender.com) — the same
+console, public and simulation-only. It sleeps on a free tier, so the first
+request after a quiet spell takes about half a minute to wake. A console
+reachable off its own machine cannot place calls; that is enforced in
+[`src/console/run.ts`](src/console/run.ts), not left to the deployment config.
+
 [Status](#status) lists what does not exist, and what the live calls changed.
 Nothing below describes unwritten code.
 
