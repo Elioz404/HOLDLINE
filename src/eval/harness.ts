@@ -64,6 +64,24 @@ export interface EvalReport {
   };
   /** Cases the bot asked directly and answered: should pass cleanly. */
   readonly straightforward: { readonly total: number; readonly passed: number; readonly rate: number };
+  /**
+   * Cases whose returned value is prose rather than an enumerated token.
+   *
+   * A live call produced one of these and the gate called it `verified`: the
+   * usable-value check knew only short sentinels like `unknown`, so a refusal
+   * written as a sentence sailed through. Both directions are measured, because
+   * a check strict enough to catch the non-answers must not eat the real ones.
+   */
+  readonly prose: {
+    /** Prose that reports nothing was established. Withholding is the catch. */
+    readonly nonAnswer: { readonly total: number; readonly caught: number; readonly rate: number };
+    /** Genuine answers written as prose. Withholding one is the error. */
+    readonly answered: {
+      readonly total: number;
+      readonly wronglyWithheld: number;
+      readonly rate: number;
+    };
+  };
   readonly overallAccuracy: number;
   /**
    * What a caller ends up believing, which is the number that matters to
@@ -154,11 +172,19 @@ export function runEvaluation(
   const hallucinatedCases = results.filter((r) => r.kind === "not_asked_value_returned");
   const paraphrasedCases = results.filter((r) => r.kind === "asked_paraphrase_answered");
   const directCases = results.filter((r) => r.kind === "asked_direct_answered");
+  const proseNonAnswerCases = results.filter((r) => r.kind === "asked_prose_non_answer");
+  const proseAnsweredCases = results.filter((r) => r.kind === "asked_prose_answered");
 
   const caught = hallucinatedCases.filter((r) => r.flaggedUnsupported).length;
   const falseWithheld = paraphrasedCases.filter((r) => r.withheld).length;
   const passed = directCases.filter((r) => !r.withheld).length;
   const misaccused = paraphrasedCases.filter((r) => r.flaggedUnsupported).length;
+
+  // The question was asked in both prose classes, so `flaggedUnsupported` is
+  // the wrong predicate here: neither value is invented. What separates them is
+  // whether the value says anything, so withholding is the signal both ways.
+  const proseCaught = proseNonAnswerCases.filter((r) => r.withheld).length;
+  const proseEaten = proseAnsweredCases.filter((r) => r.withheld).length;
 
   // What each approach hands to whoever acts on the answer.
   const schemaAccepted = results.filter((r) => r.schemaAccepts);
@@ -186,6 +212,18 @@ export function runEvaluation(
       total: directCases.length,
       passed,
       rate: rate(passed, directCases.length),
+    },
+    prose: {
+      nonAnswer: {
+        total: proseNonAnswerCases.length,
+        caught: proseCaught,
+        rate: rate(proseCaught, proseNonAnswerCases.length),
+      },
+      answered: {
+        total: proseAnsweredCases.length,
+        wronglyWithheld: proseEaten,
+        rate: rate(proseEaten, proseAnsweredCases.length),
+      },
     },
     overallAccuracy: rate(results.filter((r) => r.correct).length, results.length),
     reported: {
@@ -253,6 +291,8 @@ export function formatReport(report: EvalReport): string {
     `  Direct asks passed             ${report.straightforward.passed}/${report.straightforward.total}  ${pct(report.straightforward.rate)}`,
     `  Paraphrases wrongly accused    ${report.paraphrased.misaccused}/${report.paraphrased.total}  ${pct(report.paraphrased.misaccusedRate)}`,
     `  Paraphrases withheld           ${report.paraphrased.withheld}/${report.paraphrased.total}  ${pct(report.paraphrased.rate)}`,
+    `  Prose non-answers caught       ${report.prose.nonAnswer.caught}/${report.prose.nonAnswer.total}  ${pct(report.prose.nonAnswer.rate)}`,
+    `  Prose answers wrongly withheld ${report.prose.answered.wronglyWithheld}/${report.prose.answered.total}  ${pct(report.prose.answered.rate)}`,
     "",
     `  Overall accuracy               ${pct(report.overallAccuracy)}`,
     "",

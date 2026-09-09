@@ -17,8 +17,9 @@
  * `npm run eval` before recording, and printed verbatim.
  *
  * The console runs in simulation, says so in its header throughout, and a
- * caption says so out loud. The only real calls shown are the ones in
- * `fixtures/`, judged on camera.
+ * caption says so out loud. The saved call judged on camera is the synthetic
+ * fixture in `fixtures/`, which labels itself as synthetic in its own first
+ * field — it is a rehearsal of the gate, not a record of a telephone.
  *
  * The DOM lib is referenced for this file alone: the callbacks handed to
  * `page.evaluate` run inside the browser.

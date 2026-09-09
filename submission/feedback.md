@@ -28,15 +28,26 @@ The survey asks for feedback that is *"complete with actionable comments that
 the Sponsor can use to improve CALL-E or related documentation."* That is what
 this document is written to be.
 
-Discord is worth using as well, for the account blocker specifically, because
-that one needs a human to act rather than a form to record it. The hackathon
-page links https://discord.com/invite/HP4BhW3hnp.
+Every item below is written from something that happened while building, and
+item 1 is written up as *resolved* rather than as an open complaint — the
+account came through on 2026-09-07. The survey asks for feedback the sponsor can
+act on, and a fault that has already been diagnosed and closed is easier to act
+on than one still being argued about.
 
 ---
 
-## 1. New users cannot create an account (blocker)
+## 1. There is no self-serve sign-up path, and the docs imply there is
 
-**Priority: this stops submissions, not just development.**
+**Status: resolved for us on 2026-09-07. Reported because the next person will
+hit it, not because we are still blocked.**
+
+The hackathon rules say an account arrives automatically: *"receiving 20 free
+CALL-E calls upon creating a new account (follow the setup instructions at
+`CALLE-AI/call-e-integrations`)"*. That is the expectation we started from, and
+it is what made the failure hard to diagnose — nothing said account creation was
+a separate, manual step, so we assumed we were holding the CLI wrong.
+
+Here is the exact sequence, so it can be reproduced or ruled out.
 
 > Following the official installation guide, `npx @call-e/cli auth login
 > --start-only --no-browser-open` returns a valid brokered session
@@ -55,12 +66,27 @@ page links https://discord.com/invite/HP4BhW3hnp.
 > server. Its metadata exposes a `registration_endpoint`, but that is RFC 7591
 > Dynamic **Client** Registration — it registers OAuth clients, not users.
 >
-> If that reading is right, hackathon participants cannot self-provision, and
-> the Devpost form requires the email address on a CALL-E account. Could you
-> confirm whether accounts are being provisioned manually, and what the queue
-> looks like? Several participants report the same in this channel.
+> So the CLI and the broker were healthy the whole time. What is missing is a
+> way for a new user to become a user, and the install guide does not say that a
+> human has to provision the account.
 
-Why this one first: it is the only item here that costs the sponsor entries.
+**How it resolved:** the account was provisioned, and the allocation later
+raised to roughly 200 calls. Nothing in the tooling changed; the wait was the
+whole problem.
+
+**Suggested fix, in priority order:**
+
+1. Say it in the installation guide, in one line, at the top: whether an account
+   is self-serve or provisioned, and if provisioned, the expected wait. A known
+   two-day wait costs a participant nothing. An unknown one costs them the days
+   they spend assuming they typed something wrong.
+2. Make `auth login` say it too. The command returns a healthy pending session
+   and sends the user to a page that cannot help them; it could name the step
+   that is missing.
+3. Fix the `heycall-e.com` "Sign up now!" link, which lands on sign-in.
+
+Why this one first: for us it cost days of a one-week build, and it is the only
+item here that can cost the sponsor entries rather than goodwill.
 
 ---
 

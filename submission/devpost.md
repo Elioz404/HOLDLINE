@@ -29,10 +29,24 @@ only noticed because the summary happened to mention the agent moving on.
 That is a small bug and an enormous problem. A call result tells you what the
 model concluded. It does not tell you what was said out loud, and nothing in
 the response distinguishes *asked and not understood* from *never asked at
-all*. Every one of the 270 projects in this hackathon's repository places calls
-and trusts what comes back.
+all*.
 
-So we built the thing that checks.
+We are not the only project in this repository that noticed. `verify-by-phone`
+grounds each answer in a transcript span, `verity-verification-core` gates a
+`task_completed` claim behind an independent read-back, and
+`incident-escalation-call` records an acknowledgement only from words the
+recipient spoke. Checking the transcript is, correctly, becoming the house
+style.
+
+What is still missing everywhere — including in ours, until measurement forced
+it — is the distinction *underneath* that check. **Not confirmed** and
+**invented** are different states, and a gate that conflates them is unusable:
+ours accused 100% of paraphrased questions of being fabricated on its first
+run. So HOLDLINE returns six verdicts rather than a boolean, and publishes what
+telling them apart costs: 57 real answers withheld, printed on the same screen
+as the zero it buys.
+
+So we built the thing that checks, and then measured the thing that checks.
 
 **Targeting: Most Practical Use Case.** It replaces a process a discharge
 coordinator runs by hand today, and the improvement is measured rather than
@@ -83,18 +97,26 @@ returns none of those.
 
 ### 2 — Quality of the Idea
 
-Almost every phone-agent project treats the returned result as the answer. The
-non-obvious move is to treat it as a *claim*, and to check it against what was
-said out loud. The distinction we had to invent — `unattributed`, meaning *a
-question was asked and answered but I cannot pin it to this field* — is what
-separates "I cannot confirm this" from "this never happened". Conflating those
-two is what made our first version unusable, and we only found that by
-measuring.
+Treating the returned result as a *claim* rather than an answer is no longer a
+lonely position in this repository, and we would rather say so than pretend
+otherwise. The non-obvious part is what happens after you decide to check.
+
+Every check needs a verdict for *the question was asked, and answered, but I
+cannot pin that answer to this field*. Without it, a lexical check calls every
+paraphrase a fabrication — ours did, on 100% of them, and the number is why
+`unattributed` exists at all. It is the difference between "I cannot confirm
+this" and "this never happened", and those two sentences send a discharge
+coordinator to different places.
+
+The second non-obvious part is publishing the bill. Withholding is not free: it
+costs 57 real answers on our own corpus, and that line prints on every run
+beside the zero it buys. A benchmark containing only the cases a system handles
+is marketing. We would rather be measured than admired.
 
 ### 3 — Technical Implementation
 
 CALL-E is imported and exercised at runtime through the genuine `CalleClient`;
-only the network underneath it is replaced in tests. 148 tests, no credentials,
+only the network underneath it is replaced in tests. 150 tests, no credentials,
 no calls. Strict E.164, unconditional emergency-prefix refusal, output
 redaction that covers echoed metadata and provider error bodies, idempotency
 keys derived from the authorizing record with no timestamp parameter to misuse,
@@ -234,7 +256,7 @@ is still withheld, because an answer that cannot be attributed to a question
 should not be stored as fact. A benchmark containing only the cases a system
 handles is marketing.
 
-148 tests, no network and no credentials. Three production dependencies. The
+150 tests, no network and no credentials. Three production dependencies. The
 skill was copied into a clone of `awesome-phone-call-agents` and validated with
 that repository's own `scripts/validate_repository.py` before submission.
 

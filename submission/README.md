@@ -94,9 +94,25 @@ mock-ups. Re-run it whenever the interface changes.
 The video is handled too: `npm run narrate`, `npm run video`, `npm run mixdown`
 produce `docs/video/holdline.mp4` (2:42, narrated) and `holdline.srt`.
 
-## Open blocker
+## Account — resolved
 
-The CALL-E account is unresolved: the dashboard offers sign-in with no sign-up
-path, and other participants report the same. The submission form requires the
-email address on a CALL-E account, so this is on the critical path and is not
-something the code can work around.
+The CALL-E account was the critical-path blocker for several days: the
+dashboard offered sign-in with no sign-up path, and other participants reported
+the same. It is resolved. Seven live calls were placed on 2026-09-07, and the
+call allocation has since been raised to roughly 200.
+
+What that history is still worth is a feedback item, not a blocker — see
+`feedback.md` item 1, which is written up as *what happened and how it was
+resolved* rather than as an open complaint.
+
+## Two deadlines, not one
+
+Both matter, and only the first is irreversible.
+
+| | When | What it freezes |
+| --- | --- | --- |
+| Submission | 14 Sep 2026, 23:45 SGT (15:45 UTC) | The Devpost form, the video, the text, the links |
+| Judging | 30 Sep – 13 Oct 2026 | Nothing — but this is when a judge opens the pull request |
+
+The pull request can keep improving after the 14th. The video and the Devpost
+text cannot. Spend the remaining days accordingly, and submit on the 13th.

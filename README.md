@@ -1,15 +1,23 @@
 # HOLDLINE
 
-**For the person whose job is making the same phone call forty times.**
+**A patient is medically ready to leave hospital, and cannot, because nobody
+has confirmed a bed.**
 
-A hospital discharge coordinator ringing round care homes for a free bed. A
-billing clerk chasing claim status across payers. A dispatcher checking which
-supplier actually has the part on the shelf. They spend the day in phone menus
-and hold queues, collecting answers they have to act on.
+So a discharge coordinator rings eight care homes, one at a time, through eight
+phone menus and eight hold queues, asking the same two questions. Four hours a
+week on the telephone — and that is not the expensive part.
 
-HOLDLINE asks all of them at once, and returns **only the answers the call
+The expensive part is a *"yes, we have a bed"* the call never actually
+established. The patient stays another night; the coordinator starts again
+tomorrow.
+
+HOLDLINE asks all eight at once, and returns **only the answers the call
 actually established.** A field the conversation never covered comes back
 empty, with the reason, instead of coming back wrong.
+
+The same shape fits a billing clerk chasing claim status across payers, or a
+dispatcher checking which supplier has the part on the shelf. Discharge is the
+one it was built against, measured against, and is documented against here.
 
 <img src="docs/screenshots/01-answers-established-and-withheld.png" alt="Three care homes from one dispatch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
 
@@ -18,13 +26,17 @@ withheld, with the reason.*
 
 <img src="docs/screenshots/05-on-the-line.png" alt="Three care homes on the line at once, each row showing the call clock past two minutes" width="860">
 
-*The wait, which is the point. Three queues at once, on the call'''s own clock.*
+*The wait, which is the point. Three queues at once, on the call's own clock.*
 
-Built on [CALL-E](https://docs.heycall-e.com/). Status: **day 7 of 8** — engine,
-core modules, a measured gate, the ledgers, an MCP server, an operations
-console, and a verified submission package. See
-[Status](#status) for exactly what exists and what does not; nothing below
-describes unwritten code.
+Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
+the Evidence Gate measured over 400 labelled cases, the freshness ledger and
+route cache, an MCP server, an operations console that needs no API key, and
+150 tests that place no calls and read no credentials. Seven live calls have
+been placed through CALL-E, and one of them found a defect in the gate that
+neither the suite nor the corpus could see.
+
+[Status](#status) lists what does not exist, and what the live calls changed.
+Nothing below describes unwritten code.
 
 ## Why
 
@@ -409,7 +421,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 148 tests, no network, no credentials
+npm test          # 150 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 npm run replay    # judges a saved call; no network, no key, no call
@@ -465,9 +477,29 @@ all, because they have no business seeing a key.
 
 ## Status
 
-Day 7 of 8. What is listed under [What exists today](#what-exists-today) is
-written, typechecked, and covered by the test suite. **Not yet built:** the
-Slack plugin. It is planned, not present.
+Everything listed under [What exists today](#what-exists-today) is written,
+typechecked, and covered by the test suite. **Not present:** the Slack plugin.
+It is on the roadmap and it is not here; nothing in this repository pretends
+otherwise.
+
+### Built during the submission period
+
+This project did not exist before the hackathon. Every commit in the public
+history was written during the submission period, in this order:
+
+| | |
+| --- | --- |
+| Evidence-gated core, strict E.164, unconditional emergency refusal | `502ac8e` |
+| Parallel queue with per-target evidence gating | `1bb8c4b` |
+| Evaluation harness over 400 labelled cases — and the gate fix it forced | `b22adf3` |
+| Freshness ledger, route cache, webhook intake | `306311b` |
+| MCP server and the `holdline` skill pack | `fbfef67` |
+| Operations console and hardening pass | `0586c01` |
+| Seven live calls, and the three assumptions they disproved | 2026-09-07 |
+| Prose non-answer class added to the corpus, measured, then fixed | `937d1a8` |
+
+The last two rows are the ones worth reading: the gate's worst defect was found
+by a real telephone, not by the suite, and it was measured before it was fixed.
 
 `submission/` holds the contribution to
 [`awesome-phone-call-agents`](https://github.com/CALLE-AI/awesome-phone-call-agents):

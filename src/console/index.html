@@ -54,6 +54,10 @@
   @media (max-width:860px){ .cols{ grid-template-columns:1fr; } }
 
   .panel { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  /* The batch stays on screen while the verdicts scroll past it: an operator
+     reading a withheld field should still be able to see what was asked. */
+  .cols > .panel { position:sticky; top:16px; }
+  @media (max-width:860px){ .cols > .panel { position:static; } }
   .panel h2 { font-size:15px; margin-bottom:14px; }
   label { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:14px 0 5px; }
   label:first-of-type { margin-top:0; }

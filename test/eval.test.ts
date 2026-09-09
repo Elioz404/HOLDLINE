@@ -121,6 +121,22 @@ describe("evaluation harness", () => {
     expect(report.paraphrased.rate).toBe(1);
   });
 
+  it("catches a non-answer written as prose, not just as a sentinel token", () => {
+    // The defect a live call found: the usable-value check knew `unknown` and
+    // `n/a` and nothing longer, so a refusal written as a sentence came back
+    // `verified`. Counted from the corpus for the reason given above.
+    const nonAnswers = buildCorpus(400).filter((item) => item.kind === "asked_prose_non_answer").length;
+    expect(report.prose.nonAnswer.total).toBe(nonAnswers);
+    expect(report.prose.nonAnswer.rate).toBe(1);
+  });
+
+  it("does not eat a genuine answer for being written as prose", () => {
+    // The other direction, and the reason the fix is a measurement rather than
+    // a tightened heuristic. A check strict enough to catch the line above must
+    // still let a real answer through.
+    expect(report.prose.answered.wronglyWithheld).toBe(0);
+  });
+
   it("is stable across runs", () => {
     expect(runEvaluation(400)).toEqual(report);
   });

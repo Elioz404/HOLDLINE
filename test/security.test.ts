@@ -49,7 +49,7 @@ const FICTIONAL = [
   /^\+123456789012345$/,
   /^\+1234567890123456$/,
   /^\+1234567$/,
-  /^\+442079460958$/, // Companies House switchboard, published, used once in a redaction test
+  /^\+442079460958$/, // Ofcom drama-reserved range (020 7946 0xxx), never assignable to a real line
   // The placeholder blocklist in src/core/phone.ts — numbers the engine
   // explicitly refuses to dial. They have to appear in order to be refused.
   /^\+10000000000$/,

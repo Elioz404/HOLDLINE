@@ -137,7 +137,7 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 148 tests with no network and no credentials,
+The engine repository's suite is 150 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire
