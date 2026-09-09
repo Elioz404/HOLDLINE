@@ -59,7 +59,7 @@ and cannot, because nobody has confirmed a bed. So the coordinator rings eight
 care homes, one at a time, through eight phone menus and eight hold queues,
 asking the same two questions.
 
-HOLDLINE asks all eight at once — one dispatch, one idempotency key — and then
+HOLDLINE asks all eight at once — one batch, one authorizing record — and then
 does the part that matters: **it checks every answer against the transcript the
 agent actually spoke.**
 
@@ -128,7 +128,7 @@ and failures sorted into `retryable` / `deterministic` / `reconcile`. The
 
 `npm start` opens an operations console on loopback with the discharge batch
 already loaded — no API key needed, nothing dials until you tick the
-confirmation. One dispatch produces a verified answer and a withheld one side
+confirmation. One batch produces a verified answer and a withheld one side
 by side, each verified field quoting the sentence that established it. The same
 engine is an MCP server, where two of the three tools cannot dial at all.
 
@@ -142,8 +142,12 @@ The decision that shaped everything: the CALL-E SDK accepts an injectable
 `GET /v1/calls/{id}`, snake_case bodies, the `Idempotency-Key` header — as a
 fake transport and handed it to the genuine `CalleClient`. Our engine talks to
 the real SDK; only the network is replaced. Tests need no credentials and place
-no calls — and when we did get an account and dialled for real, nothing above
-that line had to change.
+no calls.
+
+That decision paid for itself and then charged us once. Everything above the
+transport survived contact with a real telephone except one thing — the
+dispatch itself, which a live batch retired outright. The fake had been
+modelling the documentation, and the documentation was not the telephone.
 
 We made that fake adversarial rather than convenient. It reproduces CALL-E's
 *documented failure modes*, each traced to a public issue: a confident result
@@ -159,6 +163,45 @@ confident in: failures sorted into `retryable`, `deterministic` and
 one rings a second real person.
 
 ## Challenges we ran into
+
+**The first live batch we ever placed took away the architecture.**
+
+The engine was built on what looked like the obvious primitive: CALL-E takes one
+`task` and a list of `recipients`, so a fan-out is one dispatch, one idempotency
+key, many recipients. Every test passed. The console demo worked. It worked for
+a week.
+
+Then we dialled three real numbers in one dispatch. All three connected, ran for
+49, 49 and 62 seconds, and came back `task_completed: true` at confidence
+`1.0`, each recipient carrying a populated result. **Every recipient came back
+with zero transcript turns.** The spoken content existed only as a prose
+`summary`.
+
+Our gate did the one thing it is for: it refused all three. Reading the summary
+instead would have been the exact failure we accuse everyone else of — a summary
+is what the model concluded — and it did not. Correct, and useless: a batch that
+can verify nothing is not a product.
+
+So we dialled the same three numbers again twenty-five minutes later, one call
+per target:
+
+| Same three numbers, same afternoon | Transcript turns | Result |
+| --- | --- | --- |
+| One dispatch, three recipients | 0, 0, 0 | everything withheld |
+| Three dispatches, one recipient each | 7, 15, 7 | two verified, one withheld |
+
+A multi-recipient call does not return transcript turns and a single-recipient
+call does, and nothing in the API reference says so. We rebuilt the dispatch:
+one call per target, sent together, each deriving its own idempotency key from
+the same authorizing record. The promise is unchanged — one question, many
+places, a verdict each — and reconciling one target can no longer re-dial the
+other two, which is better than what it replaced.
+
+**Our own fake had been hiding it.** We built the fake transport from the
+documentation, so it returned transcripts for every recipient of a
+multi-recipient call, and the batch path passed its tests all week. A fake
+built from documentation models the documentation. Only a telephone models the
+telephone.
 
 **The measurement said our core feature was broken.** We built an evaluation
 harness over 400 labelled cases to turn "the gate catches invented values" into
@@ -178,7 +221,7 @@ share the budget. We compile the task from prioritised segments and drop the
 lowest first — and fail loudly rather than truncate a required instruction and
 ship a call that asks half a question.
 
-**Seven real calls broke things I had written down as true.** By the time an
+**Fifteen real calls broke things I had written down as true.** By the time an
 account existed the whole engine was built against the local fake, so the calls
 were a test of my assumptions as much as of the platform. No transcript,
 recording or call artifact from any of them is kept in the repository — what
@@ -281,7 +324,7 @@ we built is that distinction, in one form or another.
 
 Pressing keys. We now know exactly why it matters: a real carrier line stopped
 accepting speech mid-call, required a keypad selection, and hung up on an agent
-that had only a voice. That is the single clearest thing seven live calls
+that had only a voice. That is the single clearest thing the live calls
 taught us about where this breaks.
 
 Then a Slack action so a ward clerk can ask from where they already work,

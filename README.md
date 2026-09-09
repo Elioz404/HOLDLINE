@@ -19,21 +19,31 @@ The same shape fits a billing clerk chasing claim status across payers, or a
 dispatcher checking which supplier has the part on the shelf. Discharge is the
 one it was built against, measured against, and is documented against here.
 
-<img src="docs/screenshots/01-answers-established-and-withheld.png" alt="Three care homes from one dispatch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
+<img src="docs/screenshots/01-answers-established-and-withheld.png" alt="Three care homes from one batch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
 
-*One dispatch, three care homes. Two answers established by the call; one
-withheld, with the reason.*
+*One batch, three care homes, three calls placed together. Two answers
+established by the call; one withheld, with the reason.*
 
 <img src="docs/screenshots/05-on-the-line.png" alt="Three care homes on the line at once, each row showing the call clock past two minutes" width="860">
 
 *The wait, which is the point. Three queues at once, on the call's own clock.*
 
+Those two are the simulator, and say so on screen. These three are not:
+
+<img src="docs/screenshots/07-three-real-calls.png" alt="Three real CALL-E calls judged by the gate. Each reported the same answer with high confidence. Two are verified; the third is withheld because nothing in that call asked the question." width="860">
+
+*Three real calls to published automated lines. CALL-E answered all three
+confidently. Two were established by the conversation. On the third the agent
+never asked, so that answer does not come back. The sentences that established
+the other two are not printed: a real call leaves no transcript here.*
+
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and
 route cache, an MCP server, an operations console that needs no API key, and
-157 tests that place no calls and read no credentials. Eleven live calls have
-been placed through CALL-E, and three of them found defects that neither the
-suite nor the corpus could see.
+157 tests that place no calls and read no credentials. Fifteen live calls have
+been placed through CALL-E. Four of them found defects that neither the suite
+nor the corpus could see, and one of them took away the engine’s central design
+decision.
 
 [Status](#status) lists what does not exist, and what the live calls changed.
 Nothing below describes unwritten code.
@@ -58,7 +68,7 @@ matter how confident the model sounded.
 
 | Module | File | What it does |
 | --- | --- | --- |
-| Queue engine | `src/engine/queue.ts` | Asks one question of many places in a single dispatch, then gates each answer separately. Preview by default. |
+| Queue engine | `src/engine/queue.ts` | Asks one question of many places at once — one call per target, dispatched together — then gates each answer separately. Preview by default. |
 | Evidence Gate | `src/evidence/gate.ts` | Judges each result field against the bot's spoken turns. Six verdicts, from `verified` down to `never_asked`. |
 | Fake transport | `src/testing/fake-calle.ts` | A `fetch` implementation of the CALL-E wire contract that reproduces the platform's documented failure modes. |
 | Evaluation harness | `src/eval/` | Measures the gate against a seeded, labelled corpus — including cases it is expected to get wrong. |
@@ -215,7 +225,7 @@ Take the discharge coordinator the console demonstrates. Suppose:
 That is 40 calls and **four hours a week** on the telephone, for one
 coordinator. Three things change that:
 
-**The calls are one dispatch, not forty.** Wall-clock time becomes the longest
+**The calls go out together, not one after another.** Wall-clock time becomes the longest
 call rather than the sum of all of them, so the coordinator is not the
 bottleneck between one call and the next.
 
@@ -503,6 +513,7 @@ history was written during the submission period, in this order:
 | Prose non-answer class added to the corpus, measured, then fixed | `937d1a8` |
 | An eighth live call found the masking gap below, and closed it | 2026-09-09 |
 | A later call found the gate crediting an unasked field; measured, then fixed | 2026-09-09 |
+| The first live batch retired the fan-out architecture; one call per target now | 2026-09-09 |
 
 The last two rows are the ones worth reading: the gate's worst defect was found
 by a real telephone, not by the suite, and it was measured before it was fixed.
@@ -520,7 +531,7 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**Seven live calls have been placed**, across six dispatches, on 2026-09-07,
+**Fifteen live calls have been placed**, on 2026-09-07 and 2026-09-09,
 to published automated customer-service lines. **No transcript, recording or
 call artifact from them is kept in this repository.** What follows is what they
 changed, in our own words:
@@ -590,6 +601,49 @@ now actually request something — a question mark, or a construction like *"I
 wanted to check whether"*, because *"I need to know if the part is in stock"*
 asks a real question without one. After the fix: **50/50 caught, and direct
 asks still 50/50**, so nothing that genuinely asked was lost.
+
+### The batch that retired the architecture
+
+The last live run was the first batch this project ever placed, and it took the
+engine's central design decision away.
+
+Three numbers, one dispatch, three recipients. All three calls connected and
+ran — 49, 49 and 62 seconds — and CALL-E reported `task_completed: true` at
+confidence `1.0` with a populated structured result for every recipient.
+**Every recipient came back with zero transcript turns.** The spoken content
+was there, but only as a prose `summary`.
+
+The gate did the one thing it is for: it refused. No transcript, nothing
+established, all three fields withheld, reason given. Reading the summary
+instead would have been the exact failure this project accuses everyone else
+of, and it did not.
+
+But a batch that can verify nothing is not a product. So the same three numbers
+were dialled again twenty-five minutes later, one call per target instead of
+one call with three recipients:
+
+| Same three numbers, same afternoon | Transcript turns | Result |
+| --- | --- | --- |
+| One dispatch, three recipients | 0, 0, 0 | everything withheld |
+| Three dispatches, one recipient each | 7, 15, 7 | two verified, one withheld |
+
+That is the whole finding. `transcript_turns` is returned for a call with one
+recipient and not for a call with several, and nothing in the API reference
+says so. It is not latency — the batch was re-fetched later and the turns never
+arrived.
+
+The engine now places one call per target. The promise on the outside is
+unchanged: one question, many places, a verdict each, one authorizing record.
+Underneath, each target derives its own idempotency key from that record, which
+turns out to be better than what it replaced — reconciling one target can no
+longer re-dial the other two.
+
+**The fake transport had been hiding this for a week.** It returned transcripts
+for every recipient of a multi-recipient call, because that is what the
+documentation implies, so the batch path passed its tests the whole time. It
+now answers only about the recipients a call actually dialled. A fake built
+from documentation models the documentation; only a telephone models the
+telephone.
 
 The gate's other honest cost is older and still published: a fact established
 by *absence* cannot be credited. If nobody human ever comes on the line, then

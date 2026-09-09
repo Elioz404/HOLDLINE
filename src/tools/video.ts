@@ -12,14 +12,16 @@
  * same numbers, so picture, voice and subtitles cannot drift apart and none of
  * it is hand-edited.
  *
- * The terminal segments are not mock-ups. `docs/video/out-replay.txt` and
- * `out-eval.txt` are captured from real runs of `npm run replay` and
- * `npm run eval` before recording, and printed verbatim.
+ * The terminal segments are not mock-ups. `docs/video/out-live-batch.txt` and
+ * `out-eval.txt` are captured verbatim from real runs of `npm run replay` and
+ * `npm run eval` before recording, and printed as they came.
  *
- * The console runs in simulation, says so in its header throughout, and a
- * caption says so out loud. The saved call judged on camera is the synthetic
- * fixture in `fixtures/`, which labels itself as synthetic in its own first
- * field — it is a rehearsal of the gate, not a record of a telephone.
+ * The console segment runs against the local simulator, says so in its header
+ * throughout, and a caption says so out loud. The three calls judged after it
+ * are real, placed through CALL-E to published automated lines. The sentences
+ * that established two of them are not on screen: that capture is taken with
+ * `--no-quotes`, because a real call leaves no transcript in this repository
+ * and this video is committed to it.
  *
  * The DOM lib is referenced for this file alone: the callbacks handed to
  * `page.evaluate` run inside the browser.
@@ -57,7 +59,7 @@ async function main(): Promise<void> {
   const narration = JSON.parse(readFileSync(manifestPath, "utf8")) as { lines: NarratedLine[] };
   const lines = narration.lines;
 
-  const replayOut = readFileSync(`${OUT_DIR}/out-replay.txt`, "utf8").replace(/\s+$/, "");
+  const liveBatchOut = readFileSync(`${OUT_DIR}/out-live-batch.txt`, "utf8").replace(/\s+$/, "");
   const evalOut = readFileSync(`${OUT_DIR}/out-eval.txt`, "utf8").replace(/\s+$/, "");
 
   const server = createConsole({ simulate: true });
@@ -163,50 +165,33 @@ async function main(): Promise<void> {
     await say(9);
     await page.evaluate(() => document.querySelectorAll("#cards .card")[1]?.scrollIntoView({ block: "center", behavior: "smooth" }));
     await sleep(700);
-    await say(10);
-    await say(11, true);
+    await say(10, true);
 
-    // ── a real call ───────────────────────────────────────────────────────
-    await page.setContent(terminalPage("npm run replay — a real CALL-E call, judged", replayOut), { waitUntil: "load" });
-    await installCaption(page);
-    await sleep(900);
-    await say(12);
-    await say(13);
-    await say(14, true);
-
-    // ── the call that caught us ───────────────────────────────────────────
+    // three real calls
+    //
+    // Verbatim output of `npm run replay --no-quotes` over the batch this
+    // project actually placed. `--no-quotes` is why the sentences that
+    // established two of the three are absent: real calls leave no transcript
+    // in this repository, and this video is committed to it.
     await page.setContent(
-      terminalPage(
-        "the call that caught us",
-        [
-          "  A live call to an automated line came back like this:",
-          "",
-          "    verdict   verified",
-          "    answers   { field: <a whole sentence saying no explanation was",
-          "                 given, and the call ended before answering> }",
-          "",
-          "  A value that says nothing was established \u2014 waved through as verified.",
-          "  The usable-value check only knew the tokens \u201cunknown\u201d, \u201cn/a\u201d, \u201cnone\u201d.",
-          "",
-          "  The unit suite missed it. 400 evaluated cases missed it too, because",
-          "  every value in that corpus was one word long. A phone call found it.",
-        ].join("\n"),
-      ),
+      terminalPage("npm run replay — three real CALL-E calls, judged", liveBatchOut),
       { waitUntil: "load" },
     );
     await installCaption(page);
     await sleep(900);
-    await say(15);
-    await say(16);
-    await say(17, true);
+    await say(11);
+    await say(12);
+    await say(13);
+    await say(14);
+    await say(15, true);
 
-    // ── the numbers ───────────────────────────────────────────────────────
+    // the numbers
     await page.setContent(terminalPage("npm run eval — 400 labelled cases, no calls placed", evalOut), { waitUntil: "load" });
     await installCaption(page);
     await sleep(900);
-    await say(18);
-    await say(19);
-    await say(20, true);
+    await say(16);
+    await say(17);
+    await say(18, true);
 
     await sleep(600);
     await recorder.stop();

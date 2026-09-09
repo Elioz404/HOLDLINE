@@ -9,7 +9,7 @@ The list is loosely alphabetical. Place this immediately **before** the
 `voice-preflight` entry, which is where the `h` slot currently falls:
 
 ```markdown
-- [`holdline`](skills/holdline/) - Asks one question of many places by phone in a single dispatch and returns only the fields the transcript supports, flagging values a call reports for questions it never asked.
+- [`holdline`](skills/holdline/) - Asks one question of many places by phone at once and returns only the fields the transcript supports, flagging values a call reports for questions it never asked.
 ```
 
 ## Apps section

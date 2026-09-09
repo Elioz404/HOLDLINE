@@ -167,7 +167,7 @@ describe("runQueue", () => {
     expect(fake.idempotencyKeysSeen).toHaveLength(1);
   });
 
-  it("fans out to several targets in a single dispatch", async () => {
+  it("gives every target its own call, and a verdict each", async () => {
     const scenario: Scenario = {
       ...SCENARIOS.ivr_traversal,
       recipients: [
@@ -193,9 +193,18 @@ describe("runQueue", () => {
     expect(outcome.kind).toBe("completed");
     if (outcome.kind !== "completed") return;
 
-    // Two places asked, one dispatch, and the verdicts differ per place.
-    expect(fake.createdCount).toBe(1);
+    // Two places asked, and the verdicts differ per place.
+    //
+    // One call each, not one call with two recipients. A live batch showed why:
+    // CALL-E returns transcript turns for a one-recipient call and none for a
+    // multi-recipient one, so the gate had nothing to judge and withheld every
+    // field. The batch is still one question and one authorizing record; only
+    // the dispatch underneath it changed.
+    expect(fake.createdCount).toBe(2);
+    expect(outcome.callIds).toHaveLength(2);
+    expect(new Set(outcome.callIds).size).toBe(2);
     expect(outcome.targets).toHaveLength(2);
+    expect(outcome.targets[0]?.callId).not.toBe(outcome.targets[1]?.callId);
     expect(outcome.targets[0]?.gate.verdict).toBe("verified");
     expect(outcome.targets[1]?.gate.verdict).toBe("needs_human");
     expect(outcome.targets[1]?.result["reference_status"]).toBeNull();

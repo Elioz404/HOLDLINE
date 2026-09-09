@@ -99,7 +99,7 @@ async function main(): Promise<void> {
 
     beat(
       "0:18  plan",
-      '"Two questions, four homes, one dispatch. HOLDLINE compiles it into the 255\n' +
+      '"Two questions, four homes, one batch. HOLDLINE compiles it into the 255\n' +
         ' characters the API allows and shows you exactly what will be said."\n' +
         'Then: the character meter, the refused row, the idempotency key.',
     );
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
 
     beat(
       "0:45  the wait — say nothing for five seconds",
-      '"Three homes, one dispatch, all three sitting in the queue at once. That\n' +
+      '"Three homes, one batch, all three sitting in the queue at once. That\n' +
         ' clock is the call\'s own clock. Nobody is listening to this."\n' +
         'Let it reach "a person answered" before speaking again.',
     );

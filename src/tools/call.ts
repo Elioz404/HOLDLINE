@@ -5,7 +5,7 @@
  * it over HTTP, the MCP server exposes it to an agent, and the probe is a
  * diagnostic that asks about the call rather than about anything a person
  * needs to know. This is the plain entry point — one question, several places,
- * one dispatch, and only the answers the calls established.
+ * one batch, and only the answers the calls established.
  *
  *   npm run call -- --ask "Are you open on Saturday?" \
  *                   --to +1... --to +1... \
@@ -172,7 +172,10 @@ async function main(): Promise<number> {
 
   stdout.write(`\n  Task compiled     ${plan.task.used}/${plan.task.budget} characters\n`);
   if (plan.task.dropped.length > 0) stdout.write(`  Dropped segments  ${plan.task.dropped.join(", ")}\n`);
-  stdout.write(`  Idempotency key   ${plan.idempotencyKey}\n`);
+  // The batch key. Each target derives its own from this same authorizing
+  // record plus its subject id, so one target can be reconciled without
+  // risking a second call to the others.
+  stdout.write(`  Batch key         ${plan.idempotencyKey}  (each target derives its own)\n`);
   stdout.write(`  Batch id          ${batchId}\n\n`);
   stdout.write(`  "${plan.task.task}"\n\n`);
 
@@ -228,22 +231,34 @@ async function main(): Promise<number> {
   if (outcome.kind === "preview") return 0;
 
   stdout.write(
-    `\n  call id     ${outcome.callId}${outcome.replayed ? "   (replayed — this intent had already gone out)" : ""}\n`,
+    `\n  call ids    ${outcome.callIds.join(", ")}${outcome.replayed ? "   (replayed — this intent had already gone out)" : ""}\n`,
   );
 
-  // Fetch the call back. The outcome above is this engine's opinion of it; the
-  // call object is what the API actually said, and the two are worth keeping
-  // side by side. The first live batch this tool placed came back with every
-  // field withheld, and nothing in its own output explained why — the answer
-  // was in the call object, which it had not kept. A GET costs nothing.
-  const settled = await client.calls.get(outcome.callId);
-  stdout.write(`  reported    ${settled.status}, taskCompleted ${String(settled.taskCompleted)}`);
-  if (settled.completionConfidence) stdout.write(`, confidence ${settled.completionConfidence.score}`);
-  stdout.write("\n");
+  // Fetch each call back. The outcome above is this engine's opinion of them;
+  // the call objects are what the API actually said, and the two are worth
+  // keeping side by side. The first live batch this tool placed came back with
+  // every field withheld, and nothing in its own output explained why — the
+  // answer was in the call object, which it had not kept. A GET costs nothing.
+  //
+  // One per target, because a batch is one call per target now. Indexing a
+  // single call's recipients by target position stopped being meaningful.
+  const settledByTarget = await Promise.all(
+    outcome.targets.map(async (target) => (target.callId ? client.calls.get(target.callId) : null)),
+  );
 
   for (const [index, target] of outcome.targets.entries()) {
+    const settled = settledByTarget[index];
     stdout.write(`\n  ${target.label ?? target.subjectId}  ${target.maskedPhone}\n`);
-    const attempt = settled.recipients[index]?.attempts[0];
+    if (target.unresolved) {
+      stdout.write(`    unresolved ${target.unresolved.class} — ${target.callId ?? "no call was created"}\n`);
+      continue;
+    }
+    if (settled) {
+      stdout.write(`    reported  ${settled.status}, taskCompleted ${String(settled.taskCompleted)}`);
+      if (settled.completionConfidence) stdout.write(`, confidence ${settled.completionConfidence.score}`);
+      stdout.write("\n");
+    }
+    const attempt = settled?.recipients[0]?.attempts[0];
     if (attempt?.startedAt && attempt.completedAt) {
       const seconds = Math.round((Date.parse(attempt.completedAt) - Date.parse(attempt.startedAt)) / 1000);
       stdout.write(`    on call   ${seconds}s, ${target.transcript.length} transcript turns\n`);
@@ -266,13 +281,14 @@ async function main(): Promise<number> {
   await mkdir(OUTPUT_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const record = {
-    callId: outcome.callId,
+    callIds: outcome.callIds,
     batchId,
     task: plan.task.task,
     idempotencyKey: plan.idempotencyKey,
     // What the API said, then what this engine made of it. Keeping only the
     // second leaves a failure undiagnosable.
-    call: settled,
+    // One call per target now, so the record keeps all of them.
+    calls: settledByTarget,
     targets: outcome.targets,
   };
   const raw = path.join(OUTPUT_DIR, `call-${stamp}.raw.json`);

@@ -48,9 +48,10 @@ async function main(): Promise<void> {
     if (stale.endsWith(".png")) await rm(join(OUT, stale), { force: true });
   }
 
-  for (const required of ["out-replay.txt", "out-eval.txt", "out-call.txt"]) {
+  for (const required of ["out-replay.txt", "out-eval.txt", "out-call.txt", "out-live-batch.txt"]) {
     if (!existsSync(join(TEXT, required))) throw new Error(`${TEXT}/${required} is missing.`);
   }
+  const liveBatchOut = readFileSync(join(TEXT, "out-live-batch.txt"), "utf8").replace(/\s+$/, "");
   const replayOut = readFileSync(join(TEXT, "out-replay.txt"), "utf8").replace(/\s+$/, "");
   const evalOut = readFileSync(join(TEXT, "out-eval.txt"), "utf8").replace(/\s+$/, "");
   const callOut = readFileSync(join(TEXT, "out-call.txt"), "utf8").replace(/\s+$/, "");
@@ -107,7 +108,7 @@ async function main(): Promise<void> {
     // 03 — the plan: the task budget and the derived key.
     await page.evaluate(() => document.getElementById("planout")?.scrollIntoView({ block: "start" }));
     await shoot(page, "plan",
-      "Two questions, four homes, one dispatch — compiled into the <b>255 characters</b> the API allows.");
+      "Two questions, four homes, one batch — compiled into the <b>255 characters</b> the API allows.");
 
     // 04 — refusal before dialing.
     await page.evaluate(() => {
@@ -131,29 +132,12 @@ async function main(): Promise<void> {
       "One field <b>verified</b>, quoting the sentence that established it. <i>One flagged</i> — a value the call never asked about.");
 
     await page.setContent(
-      terminalPage(
-        "the call that caught us",
-        [
-          "  A live call to an automated line came back like this:",
-          "",
-          "    verdict   verified",
-          "    answers   { field: <a whole sentence saying no explanation was",
-          "                 given, and the call ended before answering> }",
-          "",
-          "  A value that says nothing was established — waved through as verified.",
-          "  The usable-value check only knew the tokens “unknown”, “n/a”, “none”.",
-          "",
-          "  The unit suite missed it. 400 evaluated cases missed it too, because",
-          "  every value in that corpus was one word long. A phone call found it.",
-          "",
-          "  Fixed, and measured in the corpus so it cannot come back unnoticed.",
-        ].join("\n"),
-      ),
+      terminalPage("npm run replay — three real CALL-E calls, judged", liveBatchOut),
       { waitUntil: "load" },
     );
     await installCaption(page);
-    await shoot(page, "the-call-that-caught-us",
-      "A live call caught <i>our own gate</i> approving a value that said nothing was established.");
+    await shoot(page, "three-real-calls",
+      "Three real calls, answered confidently. <b>One nobody asked</b> — so it is withheld.");
 
     await page.setContent(terminalPage("npm run eval — 400 labelled cases, no calls placed", evalOut), { waitUntil: "load" });
     await installCaption(page);

@@ -202,6 +202,13 @@ interface StoredCall {
   scenario: Scenario;
   polls: number;
   createdAt: string;
+  /**
+   * The numbers this call actually asked for. The real API answers about the
+   * recipients you dialled, not about every number a scenario knows; before
+   * this was stored, a one-recipient call came back carrying the whole
+   * scenario, and every target in a batch was judged against the first one.
+   */
+  requested: readonly string[];
 }
 
 export interface FakeCalleOptions {
@@ -237,6 +244,19 @@ export function createFakeCalle(options: FakeCalleOptions = {}): FakeCalle {
   const pickScenario = (task: string): Scenario =>
     options.scenarioFor?.(task) ?? options.scenario ?? SCENARIOS.ivr_traversal;
 
+  /**
+   * The scenario recipients this call dialled, in the order it dialled them.
+   * A number the scenario does not describe still comes back, with no
+   * transcript, because the platform answers about what you asked for.
+   */
+  function recipientsFor(stored: StoredCall): ScenarioRecipient[] {
+    if (stored.requested.length === 0) return [...stored.scenario.recipients];
+    return stored.requested.map(
+      (phone) =>
+        stored.scenario.recipients.find((r) => r.phone === phone) ?? { phone, transcript: [] },
+    );
+  }
+
   function render(stored: StoredCall): unknown {
     const { scenario } = stored;
     const terminal = stored.polls >= scenario.pollsUntilTerminal;
@@ -258,7 +278,7 @@ export function createFakeCalle(options: FakeCalleOptions = {}): FakeCalle {
       failure_message: null,
       created_at: stored.createdAt,
       completed_at: done ? new Date().toISOString() : null,
-      recipients: scenario.recipients.map((recipient, index) => ({
+      recipients: recipientsFor(stored).map((recipient, index) => ({
         id: `rcp_fake_${index + 1}`,
         phones: [recipient.phone],
         locale: "en-US",
@@ -302,7 +322,11 @@ export function createFakeCalle(options: FakeCalleOptions = {}): FakeCalle {
       const { pathname } = url;
 
       if (input.method === "POST" && pathname === "/v1/calls") {
-        const body = (await input.json()) as { task?: string; metadata?: Record<string, unknown> };
+        const body = (await input.json()) as {
+          task?: string;
+          metadata?: Record<string, unknown>;
+          recipients?: { phone?: string; phones?: string[] }[];
+        };
         const task = body.task ?? "";
         const key = input.headers.get("Idempotency-Key");
         if (key) keysSeen.push(key);
@@ -329,6 +353,9 @@ export function createFakeCalle(options: FakeCalleOptions = {}): FakeCalle {
           scenario,
           polls: 0,
           createdAt: new Date().toISOString(),
+          requested: (body.recipients ?? [])
+            .map((recipient) => recipient.phone ?? recipient.phones?.[0])
+            .filter((phone): phone is string => typeof phone === "string"),
         };
         calls.set(stored.id, stored);
         if (key) byIdempotencyKey.set(key, stored.id);

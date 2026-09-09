@@ -16,7 +16,7 @@ https://call-e.devpost.com/details/feedback
 Three rules from the official rules page that shape how to use this document:
 
 - **One feedback submission per entrant.** Everything below goes into that
-  single submission. Do not file six separate ones.
+  single submission. Do not file them separately.
 - The feedback period runs to **18 September 2026** — four days after the
   project deadline. Do the project first.
 - Submitting feedback does not cost you a project prize. The rule that sounds
@@ -90,7 +90,53 @@ item here that can cost the sponsor entries rather than goodwill.
 
 ---
 
-## 2. `task` is capped at 255 characters and this is not documented
+## 2. A multi-recipient call returns no `transcript_turns`; the same numbers dialled one at a time do
+
+**This is the item we would most like acted on, and it is reproducible.**
+
+A call created with three recipients completed normally: all three connected,
+ran for 49, 49 and 62 seconds, and came back `task_completed: true` at
+completion confidence `1.0`, each recipient carrying a populated
+`structured_result` from our `recipient_result_schema`.
+
+**Every recipient had an empty `transcript_turns`.** The spoken content was
+present, but only inside the per-recipient `summary` as lowercase prose. This
+was not a timing artifact: the call was re-fetched later and the turns never
+appeared.
+
+Twenty-five minutes later, the same three numbers were dialled again from the
+same account, one recipient per call:
+
+| Same three numbers, same afternoon | `transcript_turns` returned |
+| --- | --- |
+| One call, three recipients | 0, 0, 0 |
+| Three calls, one recipient each | 7, 15, 7 |
+
+**Why it matters more than it looks.** `recipient_result_schema` is documented
+as the primitive for batch work — *"useful for batch calls where each recipient
+needs their own outcome"* — and it does return a per-recipient result. But the
+only evidence a client has for checking that result against what was actually
+said is `transcript_turns`, and on that path there is none. Anyone extracting
+per-recipient results from a batch and wanting to verify them is choosing
+between fan-out and verifiability without being told they are choosing.
+
+We rebuilt our dispatch around it: a batch is now one call per target. That
+works, and it costs the same, but it is a workaround for something a caller
+cannot discover from the API reference.
+
+**Suggested fix,** in order of preference:
+
+1. Return `transcript_turns` per recipient for multi-recipient calls, since the
+   content clearly exists — it reaches the summary.
+2. Failing that, say so in the `recipient_result_schema` documentation, in one
+   sentence: transcript turns are available for single-recipient calls only.
+3. Either way, a `transcript_available` boolean on the recipient would let a
+   client tell "nothing was said" from "we do not return that here", which are
+   very different facts to build on.
+
+---
+
+## 3. `task` is capped at 255 characters and this is not documented
 
 The Calls API rejects a longer `task`. Nothing in the quickstart, the calls
 guide, or the API reference states the limit, so the first encounter is a
@@ -105,7 +151,7 @@ and return the limit and the submitted length in the error body.
 
 ---
 
-## 3. Webhook deliveries are unsigned, and the SDK is the only place that says so
+## 4. Webhook deliveries are unsigned, and the SDK is the only place that says so
 
 `@call-e/calle` deprecates `webhooks.verify()` and `webhooks.unwrap()` with the
 reason in the JSDoc: *"Current CALL-E webhook deliveries are not signed."* The
@@ -122,7 +168,7 @@ better still.
 
 ---
 
-## 4. An idempotent replay is indistinguishable from a new call
+## 5. An idempotent replay is indistinguishable from a new call
 
 This is issue [#315](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/315)
 and we hit it too, so treat this as a second data point rather than a new
@@ -138,7 +184,7 @@ the call object. Either is enough and neither breaks an existing client.
 
 ---
 
-## 5. A timeout does not mean no call happened, and clients will assume it does
+## 6. A timeout does not mean no call happened, and clients will assume it does
 
 Issue [#283](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/283)
 records a call that stayed queued for 49 minutes, raised `CalleTimeoutError` in
@@ -156,7 +202,7 @@ deciding anything.* A distinct error type would be better than a note.
 
 ---
 
-## 6. `structured_result` gives no way to tell "asked and unclear" from "never asked"
+## 7. `structured_result` gives no way to tell "asked and unclear" from "never asked"
 
 Issue [#316](https://github.com/CALLE-AI/awesome-phone-call-agents/issues/316)
 is the one this whole project was built around, so this is a vote for its

@@ -124,10 +124,14 @@ its wording to that field. That is the fix; elimination is the fallback.
 
 ## Side effects and cancellation
 
-`run_hold` places outbound calls, billed per call, one per dialable target. It
-is a single dispatch under one idempotency key derived from `batchId`,
-`workflow` and `intent`; running it again with the same three fetches the
-existing call rather than dialing again.
+`run_hold` places outbound calls, billed per call, one per dialable target,
+dispatched together. Each target carries its own idempotency key derived from
+`batchId`, `workflow`, `intent` and that target's subject id; running the batch
+again fetches each existing call rather than dialing anyone a second time.
+
+One call per target rather than one call with many recipients, because a
+multi-recipient call returns no transcript turns and this skill has nothing to
+verify without them.
 
 Nothing in this skill schedules recurring work, so there is nothing to cancel.
 A batch in flight cannot be recalled — the confirmation before dispatch is the

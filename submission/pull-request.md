@@ -98,7 +98,7 @@ review comment, and it is corrected here and in all three Markdown files.
 ## Side effects
 
 `run_hold` places outbound calls, billed per call, one per dialable target, as
-a single dispatch under one idempotency key derived from `batchId`, `workflow`
+one call per target, dispatched together, each under its own idempotency key derived from `batchId`, `workflow`
 and `intent`. Re-running the same three fetches the existing call instead of
 dialing again.
 
@@ -146,7 +146,7 @@ contract.
 
 ## Note on live calls
 
-Seven live calls, across six dispatches, were placed on 2026-09-07 to published
+Fifteen live calls were placed on 2026-09-07 and 2026-09-09 to published
 automated customer-service lines. **No transcript, recording, call id or other
 call artifact from them is included in this contribution or kept in the linked
 repository.** What follows is a summary of what they changed, in our own words.

@@ -86,11 +86,18 @@ export async function clearCaption(page: Page): Promise<void> {
 /** A page that shows real captured terminal output. Nothing here is invented. */
 export function terminalPage(title: string, body: string): string {
   const escaped = body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Long output has to shrink or it runs under the caption, and a still image
+  // cannot be scrolled. Measured against the frame rather than guessed: the
+  // pane is 720px tall, the header takes 40 of them, and the caption sits in
+  // the bottom 90.
+  const lines = body.split("\n").length;
+  const size = lines > 26 ? 11.5 : 14;
+  const leading = lines > 26 ? 1.42 : 1.5;
   return `<!doctype html><meta charset="utf-8"><style>
     :root { color-scheme: dark; }
     body { margin: 0; background: #06090c; color: #d7e2ec; height: 100vh; overflow: hidden;
-           font: 400 14px/1.5 ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace; }
-    header { padding: 30px 56px 10px; font: 600 15px ui-sans-serif, system-ui, sans-serif;
+           font: 400 ${size}px/${leading} ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace; }
+    header { padding: 26px 56px 8px; font: 600 15px ui-sans-serif, system-ui, sans-serif;
              letter-spacing: .16em; text-transform: uppercase; color: #7d8b99; }
     /*
      * pre-wrap, not pre. Real tool output contains quoted transcript turns

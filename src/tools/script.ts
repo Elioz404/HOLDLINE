@@ -41,16 +41,16 @@ export const SCRIPT: readonly ScriptLine[] = [
 
   {
     segment: "plan",
-    caption: "Two questions, four homes, one dispatch — compiled into the <b>255 characters</b> the API allows.",
-    speech: "Two questions, four homes, one dispatch, compiled into the 255 characters the A P I allows.",
+    caption: "Two questions, four homes, one batch — compiled into the <b>255 characters</b> the API allows.",
+    speech: "Two questions, four homes, one batch, compiled into the 255 characters the A P I allows.",
   },
   {
     caption: "The fourth number is malformed. It is refused <b>before anything dials</b>, not halfway through the batch.",
     speech: "The fourth number is malformed. It's refused before anything dials, not halfway through the batch.",
   },
   {
-    caption: "The idempotency key comes from the batch record, never from the clock. Re-running fetches the same call instead of ringing anyone twice.",
-    speech: "The idempotency key comes from the batch record, never from the clock. Re-running fetches the same call instead of ringing anyone twice.",
+    caption: "Every place gets its own idempotency key, derived from the batch record and never from the clock.",
+    speech: "Every place gets its own idempotency key, derived from the batch record, and never from the clock.",
   },
 
   {
@@ -73,50 +73,40 @@ export const SCRIPT: readonly ScriptLine[] = [
     speech: "Verified means the agent asked, and an answer came back. And here is the sentence that established it.",
   },
   {
-    caption: "Same batch. The nursing level came back populated and confident — but <i>no question in that call could have produced it</i>. So it doesn’t come back.",
-    speech: "Same batch. The nursing level came back populated, and confident. But no question in that call could have produced it. So it doesn't come back.",
-  },
-  {
-    caption: "That’s a patient who doesn’t get moved tomorrow on an answer nobody gave.",
-    speech: "That's a patient who doesn't get moved tomorrow, on an answer nobody gave.",
+    caption: "The nursing level came back populated and confident — but <i>no question in that call could have produced it</i>. That’s a patient not moved tomorrow on an answer nobody gave.",
+    speech: "The nursing level came back populated, and confident. But no question in that call could have produced it. That's a patient not moved tomorrow, on an answer nobody gave.",
   },
 
   {
-    segment: "the gate, over a saved call",
-    caption: "Any finished call can be put back through the gate — no network, no key, nobody dialled.",
-    speech: "Any finished call can be put back through the gate. No network, no key, nobody dialled.",
+    segment: "three real calls",
+    caption: "Everything so far was simulated. <b>These three were not.</b> Three published lines, three real calls, placed together.",
+    speech: "Everything so far was simulated. These three were not. Three published lines, three real calls, placed together.",
   },
   {
-    caption: "One field is <b>verified</b>, and there is the sentence that established it, quoted from the call.",
-    speech: "One field is verified, and there is the sentence that established it, quoted from the call.",
+    caption: "CALL-E returned the <b>same confident answer for all three</b> — point eight six, point eight eight, point eight two.",
+    speech: "CALL-E returned the same confident answer for all three. Point eight six, point eight eight, point eight two.",
   },
   {
-    caption: "The other came back populated and confident — but <i>nothing in that call asked it</i>. So the caller gets a gap, not a guess.",
-    speech: "The other came back populated, and confident. But nothing in that call asked it. So the caller gets a gap, not a guess.",
-  },
-
-  {
-    segment: "the call that caught us",
-    caption: "Then a live call caught <i>us</i> doing the exact thing we accuse everyone else of.",
-    speech: "Then a live call caught us doing the exact thing we accuse everyone else of.",
+    caption: "The gate credited two of them. On the third, <i>the agent never asked</i> — and the platform answered anyway. So that one is withheld.",
+    speech: "The gate credited two of them. On the third, the agent never asked, and the platform answered anyway. So that one is withheld.",
   },
   {
-    caption: "The gate called that verified. Nothing in the unit suite or 400 evaluated cases saw it — free-text answers were never in the corpus.",
-    speech: "The gate called that verified. Nothing in the unit suite, or 400 evaluated cases, saw it. Free text answers were never in the corpus.",
+    caption: "The words that established the two are <b>not printed here</b>. Real calls leave no transcript in this repository.",
+    speech: "The words that established the two are not printed here. Real calls leave no transcript in this repository.",
   },
   {
-    caption: "So we added the class, measured the damage, then fixed it. In that order.",
-    speech: "So we added the class, measured the damage, then fixed it. In that order.",
+    caption: "Run as <i>one</i> dispatch of three recipients, this returned <b>no transcript at all</b>. That is why a batch is now one call per place.",
+    speech: "Run as one dispatch of three recipients, this returned no transcript at all. That is why a batch is now one call per place.",
   },
 
   {
     segment: "the numbers",
-    caption: "Half of what a caller would have believed was never established by the call.",
-    speech: "Half of what a caller would have believed was never established by the call.",
+    caption: "Across 400 labelled cases, <b>more than half</b> of what a caller would have believed was never established by the call.",
+    speech: "Across 400 labelled cases, more than half of what a caller would have believed was never established by the call.",
   },
   {
-    caption: "Through the gate: <b>zero</b>. And the cost of that is on the same screen — 57 real answers withheld.",
-    speech: "Through the gate: zero. And the cost of that is on the same screen. 57 real answers withheld.",
+    caption: "Through the gate: <b>zero</b>. And the cost of that is on the same screen — 50 real answers withheld.",
+    speech: "Through the gate: zero. And the cost of that is on the same screen. 50 real answers withheld.",
   },
   {
     caption: "A phone agent that always answers is easy. One that tells you when it doesn’t know is the one you can deploy.",

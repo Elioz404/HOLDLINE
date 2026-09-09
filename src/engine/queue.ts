@@ -6,8 +6,20 @@
  *
  * CALL-E's Calls API takes a single `task` and a list of `recipients`, and
  * returns a per-recipient structured result when given a
- * `recipientResultSchema`. That is the primitive this engine is built on: a
- * fan-out is one dispatch, one idempotency key, one intent.
+ * `recipientResultSchema`. That looked like the primitive to build on, and for
+ * most of this project's life the engine used it: one dispatch, one
+ * idempotency key, many recipients.
+ *
+ * A live batch retired that design. A multi-recipient call returns no
+ * `transcript_turns` for any recipient — the spoken content arrives only as a
+ * prose `summary` — while the same numbers, dialled one recipient at a time,
+ * return turns. The gate judges transcripts and will not read a summary, so
+ * every field in that batch was withheld. Correct, and useless.
+ *
+ * So a batch is now one call per target, dispatched together. The promise is
+ * unchanged — one question, many places, a verdict each, one authorizing
+ * record — and each target derives its own idempotency key from that record,
+ * which also means reconciling one target cannot re-dial the others.
  *
  * Three rules hold throughout:
  *
@@ -79,6 +91,14 @@ export interface TargetOutcome {
    * conversation: redact before it reaches a log or a screen.
    */
   readonly transcript: readonly CallTranscriptTurn[];
+  /** The call placed for this target, or null if creating it failed. */
+  readonly callId: string | null;
+  /**
+   * Set when this target's own call did not reach a terminal state. The other
+   * targets in the batch are unaffected: each one is its own call now, so one
+   * timeout no longer decides the batch.
+   */
+  readonly unresolved: Classification | null;
 }
 
 export type QueueOutcome =
@@ -86,7 +106,14 @@ export type QueueOutcome =
   | {
       readonly kind: "completed";
       readonly plan: QueuePlan;
+      /**
+       * The first target's call id, kept because a single-target dispatch is
+       * still the common case and callers read it. With several targets there
+       * are several calls: read `callIds`, or each target's own `callId`.
+       */
       readonly callId: string;
+      /** One call id per target that was created, in target order. */
+      readonly callIds: readonly string[];
       readonly replayed: boolean;
       readonly targets: readonly TargetOutcome[];
     }
@@ -148,27 +175,70 @@ function turnsFor(recipient: CallRecipient): CallTranscriptTurn[] {
   return recipient.attempts.flatMap((attempt) => attempt.transcriptTurns as CallTranscriptTurn[]);
 }
 
-function judge(request: QueueRequest, call: Call, plan: QueuePlan): TargetOutcome[] {
-  return call.recipients.map((recipient, index) => {
-    const target = plan.dialable[index];
-    const turns = turnsFor(recipient);
-    const gate = runEvidenceGate({
-      structuredResult: recipient.structuredResult,
-      transcriptTurns: turns,
-      probes: request.probes,
-      completionConfidence: call.completionConfidence,
-      ...(request.minConfidence === undefined ? {} : { minConfidence: request.minConfidence }),
-    });
-
-    return {
-      subjectId: target?.subjectId ?? `unknown-${index}`,
-      maskedPhone: maskPhone(recipient.phones[0] ?? ""),
-      label: target?.label,
-      gate,
-      result: gatedResult(gate, recipient.structuredResult),
-      transcript: turns,
-    };
+/**
+ * Judge one target against the call placed for it.
+ *
+ * This used to walk `call.recipients` from a single fan-out dispatch. A live
+ * batch showed why it cannot: CALL-E returns `transcript_turns` per recipient
+ * for a one-recipient call and returns none for a multi-recipient one, putting
+ * the spoken content in a prose `summary` instead. The gate judges transcripts
+ * and refuses to read a summary — a summary is what the model concluded, which
+ * is the thing this project exists not to trust — so every field in that batch
+ * came back `no_transcript` and was withheld. Correct, and useless.
+ *
+ * So a batch is now one call per target. The engine keeps its promise (one
+ * question, many places, a verdict each) by asking the platform only for what
+ * it demonstrably returns.
+ */
+function judgeOne(
+  request: QueueRequest,
+  call: Call,
+  target: QueueTarget,
+  callId: string,
+): TargetOutcome {
+  const recipient = call.recipients[0];
+  const turns = recipient ? turnsFor(recipient) : [];
+  const gate = runEvidenceGate({
+    structuredResult: recipient?.structuredResult ?? null,
+    transcriptTurns: turns,
+    probes: request.probes,
+    completionConfidence: call.completionConfidence,
+    ...(request.minConfidence === undefined ? {} : { minConfidence: request.minConfidence }),
   });
+
+  return {
+    subjectId: target.subjectId,
+    maskedPhone: maskPhone(target.phone),
+    label: target.label,
+    gate,
+    result: gatedResult(gate, recipient?.structuredResult ?? null),
+    transcript: turns,
+    callId,
+    unresolved: null,
+  };
+}
+
+/** A target whose own call never settled. Nothing is judged; nothing is lost. */
+function unresolvedTarget(
+  target: QueueTarget,
+  callId: string | null,
+  classification: Classification,
+): TargetOutcome {
+  return {
+    subjectId: target.subjectId,
+    maskedPhone: maskPhone(target.phone),
+    label: target.label,
+    gate: runEvidenceGate({
+      structuredResult: null,
+      transcriptTurns: [],
+      probes: [],
+      completionConfidence: null,
+    }),
+    result: {},
+    transcript: [],
+    callId,
+    unresolved: classification,
+  };
 }
 
 export interface RunQueueOptions {
@@ -198,52 +268,99 @@ export async function runQueue(
   }
 
   const ledger = options.ledger ?? new IdempotencyLedger();
-  const seen = ledger.inspect(plan.idempotencyKey);
-  if (seen.kind === "replay") {
-    // This intent already went out. Fetch what it produced instead of
-    // dispatching again and trusting a 201 to mean a phone rang.
-    const existing = await options.client.calls.get(seen.entry!.callId);
+  const waitOptions = {
+    ...(options.intervalMs === undefined ? {} : { intervalMs: options.intervalMs }),
+    ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+  };
+
+  // One call per target, all in flight together. The key is derived per target
+  // from the same authorizing record, so re-running the batch fetches each
+  // existing call rather than dialing anyone twice — and a retry aimed at one
+  // target no longer risks re-dialing the rest.
+  const dispatched = await Promise.all(
+    plan.dialable.map(async (target): Promise<{ outcome: TargetOutcome; replayed: boolean }> => {
+      const key = deriveIdempotencyKey({
+        workflow: request.workflow,
+        subjectId: request.batchId,
+        intent: request.intent,
+        sequence: target.subjectId,
+      });
+
+      const seen = ledger.inspect(key);
+      if (seen.kind === "replay") {
+        // This intent already went out for this target. Fetch what it produced
+        // instead of dispatching again and trusting a 201 to mean a phone rang.
+        try {
+          const existing = await options.client.calls.get(seen.entry!.callId);
+          return { outcome: judgeOne(request, existing, target, existing.id), replayed: true };
+        } catch (error) {
+          return {
+            outcome: unresolvedTarget(target, seen.entry!.callId, classifyFailure(error)),
+            replayed: true,
+          };
+        }
+      }
+
+      let created: Call;
+      try {
+        created = await options.client.calls.create(
+          {
+            task: plan.task.task,
+            recipients: [{ phone: target.phone }],
+            recipientResultSchema: request.recipientResultSchema,
+            metadata: {
+              holdline_batch: request.batchId,
+              holdline_workflow: request.workflow,
+              holdline_subject: target.subjectId,
+            },
+          },
+          { idempotencyKey: key },
+        );
+      } catch (error) {
+        return { outcome: unresolvedTarget(target, null, classifyFailure(error)), replayed: false };
+      }
+
+      ledger.record(key, created.id);
+
+      try {
+        const settled = await options.client.calls.waitForResult(created.id, waitOptions);
+        return { outcome: judgeOne(request, settled, target, settled.id), replayed: false };
+      } catch (error) {
+        // The call exists and may still be in flight. Carry its id so the
+        // caller can reconcile that one target rather than re-dial anything.
+        return {
+          outcome: unresolvedTarget(target, created.id, classifyFailure(error)),
+          replayed: false,
+        };
+      }
+    }),
+  );
+
+  const targets = dispatched.map((entry) => entry.outcome);
+  const callIds = targets.map((t) => t.callId).filter((id): id is string => id !== null);
+
+  // Unresolved means *nothing settled*, not *nothing was created*: a call that
+  // timed out still has an id, and reporting that batch as completed would tell
+  // the caller a phone had been answered when the truth is that nobody knows.
+  // A partial failure is not unresolved — it is reported per target, because a
+  // timeout on one number says nothing about the others.
+  const settled = targets.filter((target) => target.unresolved === null);
+  if (settled.length === 0) {
+    const first = targets[0];
     return {
-      kind: "completed",
+      kind: "unresolved",
       plan,
-      callId: existing.id,
-      replayed: true,
-      targets: judge(request, existing, plan),
+      callId: first?.callId ?? null,
+      classification: first?.unresolved ?? classifyFailure(new Error("no call was created")),
     };
   }
 
-  let created: Call;
-  try {
-    created = await options.client.calls.create(
-      {
-        task: plan.task.task,
-        recipients: plan.dialable.map((target) => ({ phone: target.phone })),
-        recipientResultSchema: request.recipientResultSchema,
-        metadata: { holdline_batch: request.batchId, holdline_workflow: request.workflow },
-      },
-      { idempotencyKey: plan.idempotencyKey },
-    );
-  } catch (error) {
-    return { kind: "unresolved", plan, callId: null, classification: classifyFailure(error) };
-  }
-
-  ledger.record(plan.idempotencyKey, created.id);
-
-  try {
-    const settled = await options.client.calls.waitForResult(created.id, {
-      ...(options.intervalMs === undefined ? {} : { intervalMs: options.intervalMs }),
-      ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
-    });
-    return {
-      kind: "completed",
-      plan,
-      callId: settled.id,
-      replayed: false,
-      targets: judge(request, settled, plan),
-    };
-  } catch (error) {
-    // The call exists and may still be in flight. Hand back its id so the
-    // caller can reconcile rather than re-dial.
-    return { kind: "unresolved", plan, callId: created.id, classification: classifyFailure(error) };
-  }
+  return {
+    kind: "completed",
+    plan,
+    callId: callIds[0]!,
+    callIds,
+    replayed: dispatched.every((entry) => entry.replayed),
+    targets,
+  };
 }

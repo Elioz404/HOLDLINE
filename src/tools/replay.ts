@@ -14,6 +14,11 @@
  *   npm run replay -- --call probe-output/run.masked.json \
  *                     --field in_stock="in stock,have any,availability"
  *
+ * `--no-quotes` prints the verdicts without the sentence that established each
+ * one. Use it for anything that leaves this directory: a real call's words are
+ * not kept in this repository, and that promise is only worth making if the
+ * tooling makes it easy to keep.
+ *
  * It reads a file and prints. No network, no key, no call.
  */
 
@@ -46,22 +51,27 @@ interface SavedCall {
     structuredResult?: Record<string, unknown> | null;
     attempts?: { transcriptTurns?: CallTranscriptTurn[] }[];
   }[];
-  /** `npm run call` writes a record with the call nested under this key. */
+  /** `npm run call` used to write a record with the call nested here. */
   call?: SavedCall;
+  /** It writes one call per target now, under this key. */
+  calls?: (SavedCall | null)[];
+  /** Per-target outcomes, used only for the masked label on each block. */
+  targets?: { maskedPhone?: string; label?: string }[];
 }
 
 /**
- * Unwrap whatever was saved.
+ * Every call in whatever was saved.
  *
- * There are three shapes in circulation and this used to read two of them: a
- * flattened fixture, a raw masked API response, and the record `npm run call`
- * writes, which nests the call under `call` and hangs the result off the
- * recipient rather than the root. Replaying a call this repository had just
- * placed failed with "that file has no transcript turns", which is a poor way
- * to learn that two tools in the same repo do not speak to each other.
+ * Four shapes are in circulation: a flattened fixture, a raw masked API
+ * response, the single-call record `npm run call` used to write, and the batch
+ * record it writes now — one call per target, under `calls`. This read two of
+ * them, then three. Replaying a batch this repository had just placed failed
+ * with "that file has no transcript turns", which is a poor way to learn that
+ * two tools in the same repo do not speak to each other.
  */
-function unwrap(saved: SavedCall): SavedCall {
-  return saved.call ?? saved;
+function callsOf(saved: SavedCall): SavedCall[] {
+  if (saved.calls && saved.calls.length > 0) return saved.calls.filter((call): call is SavedCall => call !== null);
+  return [saved.call ?? saved];
 }
 
 function turnsOf(call: SavedCall): CallTranscriptTurn[] {
@@ -75,13 +85,16 @@ function resultOf(call: SavedCall): Record<string, unknown> | null {
   return (call.recipients ?? []).find((r) => r.structuredResult)?.structuredResult ?? null;
 }
 
-function parseArgs(argv: string[]): { call: string | URL; probes: FieldProbe[] } {
+function parseArgs(argv: string[]): { call: string | URL; probes: FieldProbe[]; quotes: boolean } {
   let call: string | URL = DEFAULT_CALL;
+  let quotes = true;
   const probes: FieldProbe[] = [];
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--call") {
+    if (arg === "--no-quotes") {
+      quotes = false;
+    } else if (arg === "--call") {
       const next = argv[i + 1];
       if (!next) throw new Error("--call needs a path.");
       call = next;
@@ -102,16 +115,32 @@ function parseArgs(argv: string[]): { call: string | URL; probes: FieldProbe[] }
     }
   }
 
-  return { call, probes: probes.length > 0 ? probes : DEFAULT_PROBES };
+  return { call, probes: probes.length > 0 ? probes : DEFAULT_PROBES, quotes };
 }
 
 const pad = (text: string, width: number) => text.padEnd(width);
 
 function main(): void {
-  const { call: source, probes } = parseArgs(process.argv.slice(2));
-  const call = unwrap(JSON.parse(readFileSync(source, "utf8")) as SavedCall);
+  const { call: source, probes, quotes } = parseArgs(process.argv.slice(2));
+  const saved = JSON.parse(readFileSync(source, "utf8")) as SavedCall;
+  const calls = callsOf(saved);
+  if (calls.every((call) => turnsOf(call).length === 0)) {
+    throw new Error("That file has no transcript turns.");
+  }
+
+  for (const [index, call] of calls.entries()) {
+    const label = saved.targets?.[index];
+    if (calls.length > 1) {
+      const name = label?.label ?? `target ${index + 1}`;
+      const masked = label?.maskedPhone ?? "";
+      process.stdout.write(`\n  ── ${name}  ${masked}`.trimEnd() + "\n");
+    }
+    judgeAndPrint(call, probes, quotes);
+  }
+}
+
+function judgeAndPrint(call: SavedCall, probes: FieldProbe[], quotes: boolean): void {
   const turns = turnsOf(call);
-  if (turns.length === 0) throw new Error("That file has no transcript turns.");
 
   const reported = resultOf(call);
 
@@ -124,7 +153,8 @@ function main(): void {
   const gated = gatedResult(report, reported);
 
   const out = process.stdout;
-  out.write(`\n  ${turns.length} turns  ·  ${probes.length} fields  ·  no call placed\n\n`);
+  const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+  out.write(`\n  ${plural(turns.length, "turn")}  ·  ${plural(probes.length, "field")}  ·  no call placed\n\n`);
 
   out.write("  What the call reported\n");
   for (const [field, value] of Object.entries(reported ?? {})) {
@@ -137,7 +167,9 @@ function main(): void {
   out.write("\n  What the transcript supports\n");
   for (const field of report.fields) {
     out.write(`    ${pad(field.field, 24)} ${field.verdict}\n`);
-    if (field.supportingTurn) out.write(`    ${pad("", 24)} "${field.supportingTurn}"\n`);
+    if (field.supportingTurn && quotes) out.write(`    ${pad("", 24)} "${field.supportingTurn}"\n`);
+    else if (field.supportingTurn)
+      out.write(`    ${pad("", 24)} (established by a turn this repository does not keep)\n`);
     else if (field.note) out.write(`    ${pad("", 24)} ${field.note}\n`);
   }
 

@@ -1,6 +1,6 @@
 # Demo video
 
-**Recorded. `docs/video/holdline.mp4` — 2:40, 1920×1080, H.264, narrated,
+**Recorded. `docs/video/holdline.mp4` — 2:35, 1920×1080, H.264, narrated,
 with `holdline.srt` beside it.**
 
 The rules cap it at three minutes and require it publicly visible on YouTube or
@@ -25,17 +25,16 @@ the recorder then holds every caption for exactly that long and writes down the
 wall-clock offset where it appeared. `npm run mixdown` places each line of
 audio at that offset and writes the srt from the same numbers.
 
-Measured on the finished file, all 21 lines land within 0.03s of their caption,
+Measured on the finished file, all 19 lines land within 0.03s of their caption,
 after a constant lead-in silence. Nothing was nudged by hand — there is no
 waveform to nudge.
 
 Captions are drawn into the page rather than burned in afterwards, so there is
 no subtitle filter in the chain and the type is under our control.
 
-The terminal segments are not mock-ups. `docs/video/out-replay.txt` and
-`out-eval.txt` are captured from real runs of `npm run replay` and
-`npm run eval` immediately before recording, and are printed verbatim on
-screen.
+The terminal segments are not mock-ups. `docs/video/out-live-batch.txt` and `out-eval.txt` are captured from real runs
+of `npm run replay --no-quotes` and `npm run eval` immediately before
+recording, and are printed verbatim on screen.
 
 ## What is on screen, in order
 
@@ -44,26 +43,38 @@ Timings are read from `docs/video/timing.json`, which the recorder wrote.
 | | |
 | --- | --- |
 | 0:00 | The problem, over the console at rest. |
-| 0:21 | **Plan** — the task compiled into 255 characters, the malformed fourth number refused before dialing, the idempotency key derived from the batch record. |
-| 0:51 | **On the line** — three homes at once, the call's own clock climbing past a minute. |
-| 1:08 | **The verdicts** — one home verified with the sentence that established it, one withheld with the reason. |
-| 1:35 | **The gate over a saved call** — `npm run replay` over the synthetic fixture: one field verified quoting the sentence that established it, one flagged for carrying a value the call never asked about. |
-| 1:57 | **The call that caught us** — the live call that came back `verified` on a value stating nothing was established, and what was wrong underneath it. |
-| 2:19 | **The numbers** — `npm run eval`, both the catch rate and its cost. |
+| 0:21 | **Plan** — the task compiled into 255 characters, the malformed fourth number refused before dialing, one idempotency key derived per place. |
+| 0:48 | **On the line** — three homes at once, the call's own clock climbing past a minute. Header reads `SIMULATION` throughout. |
+| 1:05 | **The verdicts** — one home verified with the sentence that established it, one withheld with the reason. |
+| 1:29 | **Three real calls** — the batch this project actually placed, judged. CALL-E answered all three confidently; two were established by the call and one was not, so it is withheld. |
+| 2:11 | **The numbers** — `npm run eval`, both the catch rate and its cost. |
 
 ## Honesty, which is on screen and not in small print
 
-The console runs against the local simulator. It says `SIMULATION` in the
-header throughout, and the narration says so out loud at 1:00.
+The console segment runs against the local simulator. It says `SIMULATION` in
+the header throughout, and the narration says so out loud.
 
-From 1:35 the screen shows real tool output: the gate judging a saved call,
-the defect a live call exposed in that gate, and the measured evaluation. **No
-call transcript, recording or call artifact appears anywhere in this video.**
-The fixture judged on screen is synthetic and labelled as such in the file
-itself.
+The three calls judged after it are **real** — placed through CALL-E to
+published automated lines — and a caption says that out loud too, because the
+whole point of the segment is the contrast with what came before it.
 
-Seven live calls were placed while building this, and what they changed is
-described in the README in our own words. Nothing from them is reproduced here.
+**No transcript from those calls appears anywhere in the video.** The capture is
+taken with `npm run replay --no-quotes`, which prints each verdict and replaces
+the sentence that established it with *"(established by a turn this repository
+does not keep)"*. That is not a stylistic choice: this video is committed to the
+repository, and the pull request promises that no transcript, recording or call
+id from a live call is kept there. A flag that makes the promise easy to keep is
+worth more than a promise that relies on remembering.
+
+Every number in every frame is masked, including the malformed one refused
+before dialing, which prints as `[redacted-phone]` because `maskPhone` will not
+show a number it could not validate.
+
+Nothing on screen is composed by hand. An earlier cut of this video contained
+one segment of hand-written text describing a defect, and a title card reading
+*"a real CALL-E call, judged"* over the synthetic fixture. Both are gone: every
+terminal frame is now output captured from a real run, and the fixture segment
+says it is a fixture.
 
 The keypad is not claimed. A real carrier line stopped accepting speech,
 required a keypad selection, and hung up on an agent that had only a voice —
@@ -75,7 +86,7 @@ Narrated with Microsoft Edge's `en-US-AndrewNeural` neural voice, generated by
 `edge-tts` through `uvx` — nothing is installed permanently and no API key is
 involved. The voice reads the on-screen captions word for word.
 
-`docs/video/holdline.srt` carries the same 21 lines with the offsets the
+`docs/video/holdline.srt` carries the same 19 lines with the offsets the
 recorder measured. Upload it as YouTube's caption track; the burned-in captions
 stay regardless, so the video reads with the sound off.
 

@@ -155,8 +155,15 @@ describe("MCP server", () => {
     expect(body["outcome"]).toBe("completed");
     expect(body["simulated"]).toBe(true);
     const targets = body["targets"] as { subjectId: string; verdict: string; phone: string }[];
-    expect(targets).toHaveLength(1); // the ivr_traversal scenario has one recipient
-    expect(targets[0]?.phone).toMatch(/^\+\d{2}••••\d{2}$/);
+    // Every number dialled is reported on, whether or not the platform had
+    // anything to say about it. This used to read 1 for two dialled targets:
+    // the engine walked the recipients the response happened to carry, so a
+    // target the platform did not describe vanished from the report instead of
+    // being reported as unestablished. Two dialled, two reported.
+    expect(targets).toHaveLength(2);
+    for (const target of targets) {
+      expect(target.phone).toMatch(/^\+\d{2}••••\d{2}$/);
+    }
     await close();
   });
 });
