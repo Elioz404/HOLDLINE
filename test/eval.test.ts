@@ -137,6 +137,24 @@ describe("evaluation harness", () => {
     expect(report.prose.answered.wronglyWithheld).toBe(0);
   });
 
+  it("does not credit a field the bot only mentioned", () => {
+    // Found by a live call, not by this suite. The agent introduced itself as
+    // "an automated assistant checking the National Weather Service Seattle
+    // forecast for today", asked nothing, and the gate marked the field
+    // verified because the probe words were sitting in that sentence. Counted
+    // from the corpus for the reason given above.
+    const mentions = buildCorpus(400).filter((item) => item.kind === "asked_mention_only").length;
+    expect(report.mentionOnly.total).toBe(mentions);
+    expect(report.mentionOnly.rate).toBe(1);
+  });
+
+  it("still passes a genuine ask that carries no question mark", () => {
+    // The cost side of the fix above, and the reason it is a request test
+    // rather than a search for "?". "I wanted to check whether you accept new
+    // patients" asks something and must keep passing.
+    expect(report.straightforward.rate).toBe(1);
+  });
+
   it("is stable across runs", () => {
     expect(runEvaluation(400)).toEqual(report);
   });

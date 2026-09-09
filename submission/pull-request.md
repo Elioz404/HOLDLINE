@@ -49,12 +49,13 @@ offline evaluation harness over a seeded, labelled corpus of 400 cases:
 
 | | |
 | --- | --- |
-| Invented values caught | 57/57 — 100% |
-| Direct asks passed | 58/58 — 100% |
-| Paraphrases wrongly accused of invention | 0/57 — 0% |
-| Paraphrases withheld | 57/57 — 100% |
-| Prose non-answers caught | 57/57 — 100% |
-| Genuine prose answers wrongly withheld | 0/57 — 0% |
+| Invented values caught | 50/50 — 100% |
+| Direct asks passed | 50/50 — 100% |
+| Paraphrases wrongly accused of invention | 0/50 — 0% |
+| Paraphrases withheld | 50/50 — 100% |
+| Prose non-answers caught | 50/50 — 100% |
+| Genuine prose answers wrongly withheld | 0/50 — 0% |
+| Topic mentioned but never asked, caught | 50/50 — 100% |
 
 The last row is the honest cost and is published deliberately. A paraphrase is
 still withheld, because an answer that cannot be attributed to a question
@@ -137,7 +138,7 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 150 tests with no network and no credentials,
+The engine repository's suite is 157 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire
@@ -172,7 +173,7 @@ that corpus was one word long.
 
 The fix went in that order: the class was added to the corpus, the damage was
 measured, then the check was changed. `asked_prose_non_answer` and
-`asked_prose_answered` now measure both directions — 57/57 caught, 0/57 genuine
+`asked_prose_answered` now measure both directions — 50/50 caught, 0/50 genuine
 prose answers wrongly withheld — so the trade is a number rather than a hope.
 
 Keypad traversal is not claimed. One system stopped accepting speech and

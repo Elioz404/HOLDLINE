@@ -121,17 +121,51 @@ function isUsableValue(value: unknown, unknownValues: readonly string[]): boolea
   return true;
 }
 
-/** The first bot turn matching this field's probes, or null. */
+/**
+ * Does this turn actually request something, rather than merely name a topic?
+ *
+ * A live call forced this distinction. The agent introduced itself as "an
+ * automated assistant checking the National Weather Service Seattle forecast
+ * for today", never asked anything, and the gate credited the field because
+ * the probe words were sitting in that sentence. A statement of purpose is not
+ * a question, and crediting one is the exact failure this file exists to
+ * prevent — arrived at from the opposite direction.
+ *
+ * A question mark is the clearest signal and not the only one: "I wanted to
+ * check whether you accept new patients" asks something without one. So the
+ * test is a question mark or an explicit request construction. It stays
+ * deliberately narrow: a turn that only *mentions* the topic no longer counts,
+ * and `test/eval.test.ts` measures what that costs in both directions.
+ */
+const REQUEST_SIGNALS: readonly RegExp[] = [
+  /\?/,
+  /\bi (?:wanted|want|need|would like|was hoping)\s+to\s+(?:check|know|ask|confirm|find out|hear)\b/i,
+  /\bi(?:'m| am)\s+calling\s+(?:about|to ask|to check|to confirm)\b/i,
+  /\b(?:could|can|would|will)\s+you\b/i,
+  /\b(?:tell|let)\s+me\s+(?:if|whether|what|when)\b/i,
+];
+
+function requestsSomething(text: string): boolean {
+  return REQUEST_SIGNALS.some((pattern) => pattern.test(text));
+}
+
+/**
+ * The first bot turn that both matches this field's probes and actually asks
+ * for something. A turn that names the topic without requesting anything is
+ * not a question and does not support a field.
+ */
 function findSupportingTurn(
   botTurns: readonly string[],
   probe: FieldProbe,
 ): string | null {
-  const hit = botTurns.find((text) =>
-    probe.asks.some((ask) =>
-      typeof ask === "string"
-        ? text.toLowerCase().includes(ask.toLowerCase())
-        : ask.test(text.toLowerCase()),
-    ),
+  const hit = botTurns.find(
+    (text) =>
+      requestsSomething(text) &&
+      probe.asks.some((ask) =>
+        typeof ask === "string"
+          ? text.toLowerCase().includes(ask.toLowerCase())
+          : ask.test(text.toLowerCase()),
+      ),
   );
   return hit ?? null;
 }

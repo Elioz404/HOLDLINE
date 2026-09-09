@@ -140,7 +140,25 @@ async function main(): Promise<number> {
     probes: args.fields,
     recipientResultSchema: {
       type: "object",
-      properties: Object.fromEntries(args.fields.map((field) => [field.field, { type: "string" }])),
+      // The API passes `description` to the extraction model and says so:
+      // "Descriptions guide extraction but are not hard validation rules."
+      // The asks are already the words we expect to hear the topic in, so they
+      // are the best description available, and `unknown` is offered because
+      // the docs ask for a value the model can pick when the call did not
+      // establish one. A model that has somewhere honest to put "I did not
+      // hear this" is less likely to invent a value — and the gate withholds
+      // `unknown` anyway, so this cannot manufacture a verified field.
+      properties: Object.fromEntries(
+        args.fields.map((field) => [
+          field.field,
+          {
+            type: "string",
+            description: `The answer the call established about: ${field.asks
+              .filter((ask): ask is string => typeof ask === "string")
+              .join(", ")}. Answer "unknown" if the call did not establish it.`,
+          },
+        ]),
+      ),
       required: args.fields.map((field) => field.field),
     },
     mode: args.live ? "live" : "preview",

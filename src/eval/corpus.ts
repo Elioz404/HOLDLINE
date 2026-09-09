@@ -24,7 +24,8 @@ export type CaseKind =
   | "not_asked_no_value"
   | "asked_paraphrase_answered"
   | "asked_prose_answered"
-  | "asked_prose_non_answer";
+  | "asked_prose_non_answer"
+  | "asked_mention_only";
 
 export interface EvalCase {
   readonly id: string;
@@ -55,6 +56,12 @@ interface FieldTemplate {
   readonly directAsks: readonly string[];
   /** Phrasings that avoid it entirely — the hard case. */
   readonly paraphraseAsks: readonly string[];
+  /**
+   * Statements that carry the probe vocabulary without asking anything: the
+   * agent announcing its purpose. A live call produced one of these and the
+   * gate read it as a question.
+   */
+  readonly mentions: readonly string[];
   readonly answers: readonly string[];
   readonly unclearReplies: readonly string[];
   readonly value: string;
@@ -68,6 +75,10 @@ interface FieldTemplate {
 const TEMPLATES: readonly FieldTemplate[] = [
   {
     field: "accepts_new_patients",
+    mentions: [
+      "This is an automated assistant checking whether you are accepting new patients.",
+      "Okay, so that covers new patients. Thank you.",
+    ],
     directAsks: [
       "Are you accepting new patients at the moment?",
       "I wanted to check whether you accept new patients right now.",
@@ -82,6 +93,10 @@ const TEMPLATES: readonly FieldTemplate[] = [
   },
   {
     field: "reference_status",
+    mentions: [
+      "This is an automated assistant looking into the status of a reference.",
+      "Okay, so that covers the status of the reference. Thanks.",
+    ],
     directAsks: [
       "Can you confirm the current status of reference 88431?",
       "I am calling about the status of reference 88431.",
@@ -96,6 +111,10 @@ const TEMPLATES: readonly FieldTemplate[] = [
   },
   {
     field: "part_in_stock",
+    mentions: [
+      "This is an automated assistant checking what you have in stock today.",
+      "Okay, so that covers what is in stock today. Thanks.",
+    ],
     directAsks: [
       "Do you have that part in stock today?",
       "I need to know if the part is in stock.",
@@ -110,6 +129,10 @@ const TEMPLATES: readonly FieldTemplate[] = [
   },
   {
     field: "reached_department",
+    mentions: [
+      "This is an automated assistant trying to reach the right department.",
+      "Okay, so that covers the department. Thanks.",
+    ],
     directAsks: [
       "Am I through to the account services department?",
       "Is this the right department for account services?",
@@ -212,6 +235,7 @@ const KINDS: readonly CaseKind[] = [
   "asked_paraphrase_answered",
   "asked_prose_answered",
   "asked_prose_non_answer",
+  "asked_mention_only",
 ];
 
 function buildCase(id: string, kind: CaseKind, template: FieldTemplate, rand: () => number): EvalCase {
@@ -264,6 +288,17 @@ function buildCase(id: string, kind: CaseKind, template: FieldTemplate, rand: ()
       trulyAsked = true;
       trulyAnswered = true;
       value = pick(PROSE_ANSWERS[template.field] ?? [template.value], rand);
+      break;
+
+    case "asked_mention_only":
+      // The agent states its purpose using the probe words and never asks.
+      // Nothing is established, and a value comes back anyway. Ground truth:
+      // not asked, not answered — the gate must withhold this.
+      turns.push({ offset_seconds: 12, speaker: "bot", text: pick(template.mentions, rand) });
+      turns.push({ offset_seconds: 20, speaker: "user", text: pick(STONEWALL, rand) });
+      trulyAsked = false;
+      trulyAnswered = false;
+      value = template.value;
       break;
 
     case "asked_prose_non_answer":

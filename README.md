@@ -31,9 +31,9 @@ withheld, with the reason.*
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and
 route cache, an MCP server, an operations console that needs no API key, and
-150 tests that place no calls and read no credentials. Seven live calls have
-been placed through CALL-E, and one of them found a defect in the gate that
-neither the suite nor the corpus could see.
+157 tests that place no calls and read no credentials. Eleven live calls have
+been placed through CALL-E, and three of them found defects that neither the
+suite nor the corpus could see.
 
 [Status](#status) lists what does not exist, and what the live calls changed.
 Nothing below describes unwritten code.
@@ -117,13 +117,16 @@ acts on the answer:
 
 | | Answers returned | Never established by the call | |
 | --- | --- | --- | --- |
-| Trusting `structured_result` | 320 | **80** | **25% wrong** |
-| Through the gate | 80 | **0** | **0% wrong** |
+| Trusting `structured_result` | 350 | **200** | **57.1% wrong** |
+| Through the gate | 100 | **0** | **0.0% wrong** |
 
-One answer in four, from a plain schema check, is a value the conversation
-never produced. The gate returns none of them. It also withholds **57 real
-answers** it could not attribute — that is the price, and it is on the same
-table rather than in a footnote.
+More than half of what a caller would have believed, from a plain schema check,
+is a value the conversation never produced. The gate returns none of them. It
+also withholds **50 real answers** it could not attribute — that is the price, and it
+is on the same table rather than in a footnote.
+
+Every figure on this page is printed by `npm run eval`. If a number here and a
+number there disagree, the program is right and this page is stale.
 
 The last two rows exist because a live call proved the corpus was blind. Every
 value in it used to be a single token, so a result field whose answer is prose
@@ -138,12 +141,13 @@ How the gate performs case by case:
 
 | | |
 | --- | --- |
-| Invented values caught | **57/57 — 100%** |
-| Direct asks passed | 58/58 — 100% |
-| Paraphrases wrongly accused | **0/57 — 0%** |
-| Paraphrases withheld | 57/57 — 100% |
-| Prose non-answers caught | **57/57 — 100%** |
-| Genuine prose answers wrongly withheld | **0/57 — 0%** |
+| Invented values caught | **50/50 — 100%** |
+| Direct asks passed | 50/50 — 100% |
+| Paraphrases wrongly accused | **0/50 — 0%** |
+| Paraphrases withheld | 50/50 — 100% |
+| Prose non-answers caught | **50/50 — 100%** |
+| Genuine prose answers wrongly withheld | **0/50 — 0%** |
+| Topic mentioned but never asked, caught | **50/50 — 100%** |
 
 The last row is the honest cost, and there is now a lever against it — see
 [Buying the withheld answers back](#buying-the-withheld-answers-back). It is
@@ -174,10 +178,10 @@ borrow its name.
 
 ```
                                   strict        with elimination
-  Invented values caught          57/57  100.0%      57/57  100.0%
-  Answers reported                        115              172
+  Invented values caught          50/50  100.0%      50/50  100.0%
+  Answers reported                        100              150
   ...never established                      0                0
-  Real answers withheld                    57                0
+  Real answers withheld                    50                0
 ```
 
 Half again the answers, and nothing unestablished got through.
@@ -421,7 +425,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 150 tests, no network, no credentials
+npm test          # 157 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 npm run replay    # judges a saved call; no network, no key, no call
@@ -497,6 +501,8 @@ history was written during the submission period, in this order:
 | Operations console and hardening pass | `0586c01` |
 | Seven live calls, and the three assumptions they disproved | 2026-09-07 |
 | Prose non-answer class added to the corpus, measured, then fixed | `937d1a8` |
+| An eighth live call found the masking gap below, and closed it | 2026-09-09 |
+| A later call found the gate crediting an unasked field; measured, then fixed | 2026-09-09 |
 
 The last two rows are the ones worth reading: the gate's worst defect was found
 by a real telephone, not by the suite, and it was measured before it was fixed.
@@ -539,8 +545,51 @@ value in that corpus was one word long.
 The fix went in that order, and the order is the point: the class was added to
 the corpus first, the damage was measured, and only then was the check changed.
 `asked_prose_non_answer` and `asked_prose_answered` now measure both directions
-— 57/57 caught, 0/57 genuine prose answers wrongly withheld — so the trade is a
+— 50/50 caught, 0/50 genuine prose answers wrongly withheld — so the trade is a
 number rather than a hope.
+
+**An eighth call, on 2026-09-09, did it again — this time to the masking.** We
+dialled a national carrier's published automated line and asked two questions.
+CALL-E returned `task_completed: true` at `0.86` confidence with
+`structured_result: null`; the gate credited nothing, which is correct, and the
+call died at a keypad prompt, which is the limit already written down here.
+
+The defect was elsewhere. The carrier's system read our own outbound caller id
+back to us, and the transcript recorded it in national notation —
+`(NPA) NXX-XXXX`. Our redaction matched E.164 and only E.164, so a full number
+reached the file this repository calls *shareable*, under a claim that every
+number in every response is masked. One notation is not every notation.
+
+`redactText` now matches a number written the way somebody says one out loud,
+separators required so a tracking number survives, and there are regression
+tests for the four notations that reached us or plausibly will. The masked
+artifact was regenerated and re-scanned before anything was published from it.
+Both times the suite was clean and the telephone was not.
+
+**A third call, the same day, caught the gate crediting a field nobody asked
+about.** We dialled a government recorded-forecast line and asked two things.
+The agent asked the first — *"is this the National Weather Service Seattle
+office?"* — and the recording answered it. It never asked the second. It only
+introduced itself as *"an automated assistant checking the forecast for
+today"*, and those words sat inside the probe for the field, so
+`findSupportingTurn` matched a statement of purpose and the gate returned
+**`verified`** on a value no question produced.
+
+This one is worse than the other two, and it is worth being plain about why.
+The prose defect and the masking defect both erred toward withholding or toward
+noise. This one **credited a field on less evidence than the gate claims to
+require** — the exact failure this project exists to prevent, arrived at from
+the opposite direction. It is also an inconsistency we had already written down
+elsewhere: the `exchanges` logic requires a question mark before it counts an
+exchange, and `findSupportingTurn` required nothing.
+
+Measured before it was fixed, as with the last one. Adding
+`asked_mention_only` to the corpus dropped the headline from `0.0% wrong` to
+**33.3% wrong** across 50 cases the gate caught none of. A supporting turn must
+now actually request something — a question mark, or a construction like *"I
+wanted to check whether"*, because *"I need to know if the part is in stock"*
+asks a real question without one. After the fix: **50/50 caught, and direct
+asks still 50/50**, so nothing that genuinely asked was lost.
 
 The gate's other honest cost is older and still published: a fact established
 by *absence* cannot be credited. If nobody human ever comes on the line, then

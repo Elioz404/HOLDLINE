@@ -62,6 +62,15 @@ export interface EvalReport {
     readonly misaccused: number;
     readonly misaccusedRate: number;
   };
+  /**
+   * Cases where the bot named the topic in a statement and asked nothing.
+   *
+   * A live call produced one: the agent introduced itself as "checking the
+   * forecast for today", never asked, and the gate credited the field because
+   * the probe words were present. Withholding is the correct outcome; anything
+   * let through here is a value the call did not establish.
+   */
+  readonly mentionOnly: { readonly total: number; readonly caught: number; readonly rate: number };
   /** Cases the bot asked directly and answered: should pass cleanly. */
   readonly straightforward: { readonly total: number; readonly passed: number; readonly rate: number };
   /**
@@ -174,6 +183,7 @@ export function runEvaluation(
   const directCases = results.filter((r) => r.kind === "asked_direct_answered");
   const proseNonAnswerCases = results.filter((r) => r.kind === "asked_prose_non_answer");
   const proseAnsweredCases = results.filter((r) => r.kind === "asked_prose_answered");
+  const mentionOnlyCases = results.filter((r) => r.kind === "asked_mention_only");
 
   const caught = hallucinatedCases.filter((r) => r.flaggedUnsupported).length;
   const falseWithheld = paraphrasedCases.filter((r) => r.withheld).length;
@@ -185,6 +195,7 @@ export function runEvaluation(
   // whether the value says anything, so withholding is the signal both ways.
   const proseCaught = proseNonAnswerCases.filter((r) => r.withheld).length;
   const proseEaten = proseAnsweredCases.filter((r) => r.withheld).length;
+  const mentionCaught = mentionOnlyCases.filter((r) => r.withheld).length;
 
   // What each approach hands to whoever acts on the answer.
   const schemaAccepted = results.filter((r) => r.schemaAccepts);
@@ -212,6 +223,11 @@ export function runEvaluation(
       total: directCases.length,
       passed,
       rate: rate(passed, directCases.length),
+    },
+    mentionOnly: {
+      total: mentionOnlyCases.length,
+      caught: mentionCaught,
+      rate: rate(mentionCaught, mentionOnlyCases.length),
     },
     prose: {
       nonAnswer: {
@@ -293,6 +309,7 @@ export function formatReport(report: EvalReport): string {
     `  Paraphrases withheld           ${report.paraphrased.withheld}/${report.paraphrased.total}  ${pct(report.paraphrased.rate)}`,
     `  Prose non-answers caught       ${report.prose.nonAnswer.caught}/${report.prose.nonAnswer.total}  ${pct(report.prose.nonAnswer.rate)}`,
     `  Prose answers wrongly withheld ${report.prose.answered.wronglyWithheld}/${report.prose.answered.total}  ${pct(report.prose.answered.rate)}`,
+    `  Mentions without a question    ${report.mentionOnly.caught}/${report.mentionOnly.total}  ${pct(report.mentionOnly.rate)}`,
     "",
     `  Overall accuracy               ${pct(report.overallAccuracy)}`,
     "",

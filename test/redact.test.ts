@@ -65,3 +65,27 @@ describe("redactError", () => {
     });
   });
 });
+
+describe("numbers spoken rather than written", () => {
+  // Found by a live call, not by this suite. The carrier's IVR read our own
+  // outbound caller id back to us and the transcript kept it in national
+  // notation, which the E.164 pattern does not match. It reached the file the
+  // tool calls shareable. These are the notations that reached us or plausibly
+  // will; the numbers below are fictional.
+  it.each([
+    ["I see you're calling from (555) 433-7012. If you'd like", "(555) 433-7012"],
+    ["call 555-433-7012 back", "555-433-7012"],
+    ["dial 555.433.7012 now", "555.433.7012"],
+    ["reach us at 1-800-555-0199 anytime", "1-800-555-0199"],
+  ])("masks %j", (text, leaked) => {
+    const out = redactText(text);
+    expect(out).not.toContain(leaked);
+    expect(out).toContain("[redacted-phone]");
+  });
+
+  it("leaves a bare digit run alone, so a tracking number survives", () => {
+    // Separators are required precisely so this does not become a shredder.
+    const text = "your tracking number is 771234567890";
+    expect(redactText(text)).toBe(text);
+  });
+});

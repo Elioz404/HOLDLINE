@@ -14,6 +14,22 @@ import { maskPhone } from "./phone.js";
 const EMBEDDED_E164 = /\+[1-9]\d{7,14}/g;
 
 /**
+ * Matches a number written the way somebody says one out loud.
+ *
+ * A live call found this gap rather than a test: the carrier's IVR read our
+ * own outbound caller id back to us, the transcript recorded it in national
+ * notation, and the pattern above did not see a phone number at all —
+ * so a full number reached a file this tool calls shareable. Masking that
+ * claimed to cover "every number in every response" covered one notation.
+ *
+ * Separators are required, so a bare run of digits — a tracking number, an
+ * order id, a reference — is left alone. A transcript is free text, and the
+ * safe direction here is the same one the gate takes: over-withhold rather
+ * than let one through.
+ */
+const EMBEDDED_NATIONAL = /(?:\+?1[-.\s])?\(?\b\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/g;
+
+/**
  * Keys whose values are replaced wholesale rather than pattern-matched.
  * Compared case-insensitively against the key's normalized form.
  */
@@ -35,9 +51,17 @@ const SECRET_KEYS = new Set([
 
 const normalizeKey = (key: string): string => key.toLowerCase().replace(/[-\s]/g, "");
 
-/** Replace every E.164-shaped run inside a free-text string with its mask. */
+/**
+ * Replace every phone-shaped run inside a free-text string with its mask.
+ *
+ * E.164 first, so a well-formed number keeps the partial mask that lets an
+ * operator tell two targets apart. Anything else phone-shaped falls through to
+ * `maskPhone`, which refuses to guess and returns `[redacted-phone]`.
+ */
 export function redactText(value: string): string {
-  return value.replace(EMBEDDED_E164, (match) => maskPhone(match));
+  return value
+    .replace(EMBEDDED_E164, (match) => maskPhone(match))
+    .replace(EMBEDDED_NATIONAL, (match) => maskPhone(match));
 }
 
 /**

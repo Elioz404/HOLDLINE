@@ -43,7 +43,7 @@ it — is the distinction *underneath* that check. **Not confirmed** and
 **invented** are different states, and a gate that conflates them is unusable:
 ours accused 100% of paraphrased questions of being fabricated on its first
 run. So HOLDLINE returns six verdicts rather than a boolean, and publishes what
-telling them apart costs: 57 real answers withheld, printed on the same screen
+telling them apart costs: 50 real answers withheld, printed on the same screen
 as the zero it buys.
 
 So we built the thing that checks, and then measured the thing that checks.
@@ -91,9 +91,9 @@ coordinator. Those are assumptions, stated so you can change them.
 
 The expensive failure is not the four hours. It is a "yes, we have a bed" the
 call never actually established — the patient stays another night and the
-coordinator starts again tomorrow. In our corpus, **one answer in four from a
-plain schema check was never established by the conversation.** HOLDLINE
-returns none of those.
+coordinator starts again tomorrow. In our corpus, **half of what a plain schema
+check would have handed the caller was never established by the conversation** —
+200 answers out of 350. HOLDLINE returns none of those.
 
 ### 2 — Quality of the Idea
 
@@ -109,14 +109,14 @@ this" and "this never happened", and those two sentences send a discharge
 coordinator to different places.
 
 The second non-obvious part is publishing the bill. Withholding is not free: it
-costs 57 real answers on our own corpus, and that line prints on every run
+costs 50 real answers on our own corpus, and that line prints on every run
 beside the zero it buys. A benchmark containing only the cases a system handles
 is marketing. We would rather be measured than admired.
 
 ### 3 — Technical Implementation
 
 CALL-E is imported and exercised at runtime through the genuine `CalleClient`;
-only the network underneath it is replaced in tests. 150 tests, no credentials,
+only the network underneath it is replaced in tests. 157 tests, no credentials,
 no calls. Strict E.164, unconditional emergency-prefix refusal, output
 redaction that covers echoed metadata and provider error bodies, idempotency
 keys derived from the authorizing record with no timestamp parameter to misuse,
@@ -209,7 +209,7 @@ case.
 I fixed it in that order, and the order is the point: I added the class to the
 corpus first, measured the damage, and only then changed the check. Both
 directions are measured now, `asked_prose_non_answer` and
-`asked_prose_answered` — 57/57 caught, 0/57 genuine prose answers wrongly
+`asked_prose_answered` — 50/50 caught, 0/50 genuine prose answers wrongly
 withheld. Correcting the metric moved the headline figure from an unearned
 `0.0% wrong` to the truth, and then the fix earned it back.
 
@@ -238,16 +238,17 @@ what did not happen. We wrote that down as a limit rather than tuning it away.
 
 ```
 What a caller ends up believing:
-  Trusting structured_result   343 answers, 171 never established  49.9% wrong
-  Through the gate             115 answers,   0 never established   0.0% wrong
-  Real answers withheld         57
+  Trusting structured_result   350 answers, 200 never established  57.1% wrong
+  Through the gate             100 answers,   0 never established   0.0% wrong
+  Real answers withheld         50
 
-Invented values caught         57/57  100.0%
-Direct asks passed             58/58  100.0%
-Paraphrases wrongly accused     0/57    0.0%
-Paraphrases withheld           57/57  100.0%
-Prose non-answers caught       57/57  100.0%
-Prose answers wrongly withheld  0/57    0.0%
+Invented values caught         50/50  100.0%
+Direct asks passed             50/50  100.0%
+Paraphrases wrongly accused     0/50    0.0%
+Paraphrases withheld           50/50  100.0%
+Prose non-answers caught       50/50  100.0%
+Prose answers wrongly withheld  0/50    0.0%
+Mentions without a question    50/50  100.0%
 ```
 
 The withheld-answers line is the cost of the zero above it, and we print it
@@ -256,7 +257,7 @@ is still withheld, because an answer that cannot be attributed to a question
 should not be stored as fact. A benchmark containing only the cases a system
 handles is marketing.
 
-150 tests, no network and no credentials. Three production dependencies. The
+157 tests, no network and no credentials. Three production dependencies. The
 skill was copied into a clone of `awesome-phone-call-agents` and validated with
 that repository's own `scripts/validate_repository.py` before submission.
 

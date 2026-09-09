@@ -42,13 +42,37 @@ interface SavedCall {
   structuredResult?: Record<string, unknown> | null;
   completionConfidence?: CompletionConfidence | null;
   transcriptTurns?: CallTranscriptTurn[];
-  recipients?: { attempts?: { transcriptTurns?: CallTranscriptTurn[] }[] }[];
+  recipients?: {
+    structuredResult?: Record<string, unknown> | null;
+    attempts?: { transcriptTurns?: CallTranscriptTurn[] }[];
+  }[];
+  /** `npm run call` writes a record with the call nested under this key. */
+  call?: SavedCall;
 }
 
-/** Accepts either a flattened fixture or a raw masked API response. */
+/**
+ * Unwrap whatever was saved.
+ *
+ * There are three shapes in circulation and this used to read two of them: a
+ * flattened fixture, a raw masked API response, and the record `npm run call`
+ * writes, which nests the call under `call` and hangs the result off the
+ * recipient rather than the root. Replaying a call this repository had just
+ * placed failed with "that file has no transcript turns", which is a poor way
+ * to learn that two tools in the same repo do not speak to each other.
+ */
+function unwrap(saved: SavedCall): SavedCall {
+  return saved.call ?? saved;
+}
+
 function turnsOf(call: SavedCall): CallTranscriptTurn[] {
   if (call.transcriptTurns?.length) return call.transcriptTurns;
   return (call.recipients ?? []).flatMap((r) => (r.attempts ?? []).flatMap((a) => a.transcriptTurns ?? []));
+}
+
+/** The root result when there is one, else the first recipient's. */
+function resultOf(call: SavedCall): Record<string, unknown> | null {
+  if (call.structuredResult) return call.structuredResult;
+  return (call.recipients ?? []).find((r) => r.structuredResult)?.structuredResult ?? null;
 }
 
 function parseArgs(argv: string[]): { call: string | URL; probes: FieldProbe[] } {
@@ -85,23 +109,25 @@ const pad = (text: string, width: number) => text.padEnd(width);
 
 function main(): void {
   const { call: source, probes } = parseArgs(process.argv.slice(2));
-  const call = JSON.parse(readFileSync(source, "utf8")) as SavedCall;
+  const call = unwrap(JSON.parse(readFileSync(source, "utf8")) as SavedCall);
   const turns = turnsOf(call);
   if (turns.length === 0) throw new Error("That file has no transcript turns.");
 
+  const reported = resultOf(call);
+
   const report = runEvidenceGate({
-    structuredResult: call.structuredResult ?? null,
+    structuredResult: reported,
     transcriptTurns: turns,
     probes,
     completionConfidence: call.completionConfidence ?? null,
   });
-  const gated = gatedResult(report, call.structuredResult ?? null);
+  const gated = gatedResult(report, reported);
 
   const out = process.stdout;
   out.write(`\n  ${turns.length} turns  ·  ${probes.length} fields  ·  no call placed\n\n`);
 
   out.write("  What the call reported\n");
-  for (const [field, value] of Object.entries(call.structuredResult ?? {})) {
+  for (const [field, value] of Object.entries(reported ?? {})) {
     const shown = typeof value === "string" && value.length > 58 ? `${value.slice(0, 55)}...` : JSON.stringify(value);
     out.write(`    ${pad(field, 24)} ${shown}\n`);
   }
@@ -127,7 +153,7 @@ function main(): void {
   // A field with no probe was never judged, so the gate does not pass it on.
   // Saying nothing about it would be the same silence this project exists to
   // break, so it is named.
-  const unjudged = Object.keys(call.structuredResult ?? {}).filter((field) => !(field in gated));
+  const unjudged = Object.keys(reported ?? {}).filter((field) => !(field in gated));
   if (unjudged.length > 0) {
     out.write(`\n  Dropped, having no probe and so never judged: ${unjudged.join(", ")}\n`);
   }
