@@ -48,10 +48,9 @@ async function main(): Promise<void> {
     if (stale.endsWith(".png")) await rm(join(OUT, stale), { force: true });
   }
 
-  for (const required of ["out-replay.txt", "out-eval.txt", "out-call.txt", "out-live-batch.txt"]) {
+  for (const required of ["out-replay.txt", "out-eval.txt", "out-call.txt"]) {
     if (!existsSync(join(TEXT, required))) throw new Error(`${TEXT}/${required} is missing.`);
   }
-  const liveBatchOut = readFileSync(join(TEXT, "out-live-batch.txt"), "utf8").replace(/\s+$/, "");
   const replayOut = readFileSync(join(TEXT, "out-replay.txt"), "utf8").replace(/\s+$/, "");
   const evalOut = readFileSync(join(TEXT, "out-eval.txt"), "utf8").replace(/\s+$/, "");
   const callOut = readFileSync(join(TEXT, "out-call.txt"), "utf8").replace(/\s+$/, "");
@@ -131,13 +130,7 @@ async function main(): Promise<void> {
     await shoot(page, "gate-over-a-saved-call",
       "One field <b>verified</b>, quoting the sentence that established it. <i>One flagged</i> — a value the call never asked about.");
 
-    await page.setContent(
-      terminalPage("npm run replay — three real CALL-E calls, judged", liveBatchOut),
-      { waitUntil: "load" },
-    );
-    await installCaption(page);
-    await shoot(page, "three-real-calls",
-      "Three real calls, answered confidently. <b>One nobody asked</b> — so it is withheld.");
+
 
     await page.setContent(terminalPage("npm run eval — 400 labelled cases, no calls placed", evalOut), { waitUntil: "load" });
     await installCaption(page);

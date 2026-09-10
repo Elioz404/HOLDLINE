@@ -1,7 +1,7 @@
 # Demo video
 
-**Recorded. `docs/video/holdline.mp4` — 2:35, 1920×1080, H.264, narrated,
-with `holdline.srt` beside it.**
+**Recorded and published: 2:35, 1920×1080, H.264, narrated, with subtitles.
+`docs/video/` is generated output and is not committed.**
 
 The rules cap it at three minutes and require it publicly visible on YouTube or
 Vimeo. It is one of four equally weighted criteria, so it is worth as much as
@@ -32,9 +32,16 @@ waveform to nudge.
 Captions are drawn into the page rather than burned in afterwards, so there is
 no subtitle filter in the chain and the type is under our control.
 
-The terminal segments are not mock-ups. `docs/video/out-live-batch.txt` and `out-eval.txt` are captured from real runs
-of `npm run replay --no-quotes` and `npm run eval` immediately before
-recording, and are printed verbatim on screen.
+The terminal segments are not mock-ups: they were captured from real runs
+immediately before recording and printed verbatim on screen.
+
+**The published video still contains the real-call segment at 1:29. This
+repository no longer renders it.** The capture it read, and the rendered video
+itself, were removed from the tree and from the public history at the
+maintainer's request during review of the pull request — a real call leaves no
+artifact here, and that now includes output derived from one. `npm run video`
+produces the same film without that segment. What those calls established is
+described in the README instead, in our own words.
 
 ## What is on screen, in order
 

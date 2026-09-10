@@ -78,28 +78,6 @@ export const SCRIPT: readonly ScriptLine[] = [
   },
 
   {
-    segment: "three real calls",
-    caption: "Everything so far was simulated. <b>These three were not.</b> Three published lines, three real calls, placed together.",
-    speech: "Everything so far was simulated. These three were not. Three published lines, three real calls, placed together.",
-  },
-  {
-    caption: "CALL-E returned the <b>same confident answer for all three</b> — point eight six, point eight eight, point eight two.",
-    speech: "CALL-E returned the same confident answer for all three. Point eight six, point eight eight, point eight two.",
-  },
-  {
-    caption: "The gate credited two of them. On the third, <i>the agent never asked</i> — and the platform answered anyway. So that one is withheld.",
-    speech: "The gate credited two of them. On the third, the agent never asked, and the platform answered anyway. So that one is withheld.",
-  },
-  {
-    caption: "The words that established the two are <b>not printed here</b>. Real calls leave no transcript in this repository.",
-    speech: "The words that established the two are not printed here. Real calls leave no transcript in this repository.",
-  },
-  {
-    caption: "Run as <i>one</i> dispatch of three recipients, this returned <b>no transcript at all</b>. That is why a batch is now one call per place.",
-    speech: "Run as one dispatch of three recipients, this returned no transcript at all. That is why a batch is now one call per place.",
-  },
-
-  {
     segment: "the numbers",
     caption: "Across 400 labelled cases, <b>more than half</b> of what a caller would have believed was never established by the call.",
     speech: "Across 400 labelled cases, more than half of what a caller would have believed was never established by the call.",

@@ -28,14 +28,19 @@ established by the call; one withheld, with the reason.*
 
 *The wait, which is the point. Three queues at once, on the call's own clock.*
 
-Those two are the simulator, and say so on screen. These three are not:
+Both of those are the simulator, and say so on screen.
 
-<img src="docs/screenshots/07-three-real-calls.png" alt="Three real CALL-E calls judged by the gate. Each reported the same answer with high confidence. Two are verified; the third is withheld because nothing in that call asked the question." width="860">
+The gate has also been run over real calls. Three published automated lines,
+dialled together: CALL-E returned the same answer for all three at high
+confidence, the gate credited two of them, and withheld the third because
+nothing in that call had asked the question. That is the whole product in one
+batch, and it happened rather than being arranged.
 
-*Three real calls to published automated lines. CALL-E answered all three
-confidently. Two were established by the conversation. On the third the agent
-never asked, so that answer does not come back. The sentences that established
-the other two are not printed: a real call leaves no transcript here.*
+**None of that is reproduced here.** No transcript, recording, call id, saved
+output, screenshot or recording of a real call is kept in this repository, and
+`docs/video/` is generated output that is not committed. What the live calls
+changed is written out in [Status](#status), in our own words, because a
+description is not an artifact and this is somebody else's phone line.
 
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and

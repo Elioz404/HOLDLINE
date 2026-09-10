@@ -12,16 +12,14 @@
  * same numbers, so picture, voice and subtitles cannot drift apart and none of
  * it is hand-edited.
  *
- * The terminal segments are not mock-ups. `docs/video/out-live-batch.txt` and
- * `out-eval.txt` are captured verbatim from real runs of `npm run replay` and
- * `npm run eval` before recording, and printed as they came.
+ * The terminal segment is not a mock-up. `docs/video/out-eval.txt` is captured
+ * verbatim from a real run of `npm run eval` before recording, and printed as
+ * it came.
  *
- * The console segment runs against the local simulator, says so in its header
- * throughout, and a caption says so out loud. The three calls judged after it
- * are real, placed through CALL-E to published automated lines. The sentences
- * that established two of them are not on screen: that capture is taken with
- * `--no-quotes`, because a real call leaves no transcript in this repository
- * and this video is committed to it.
+ * The console runs against the local simulator, says so in its header
+ * throughout, and a caption says so out loud. Nothing here is derived from a
+ * real call: `docs/video/` is generated output and is not committed, and the
+ * pipeline no longer has a segment that reads one.
  *
  * The DOM lib is referenced for this file alone: the callbacks handed to
  * `page.evaluate` run inside the browser.
@@ -59,7 +57,6 @@ async function main(): Promise<void> {
   const narration = JSON.parse(readFileSync(manifestPath, "utf8")) as { lines: NarratedLine[] };
   const lines = narration.lines;
 
-  const liveBatchOut = readFileSync(`${OUT_DIR}/out-live-batch.txt`, "utf8").replace(/\s+$/, "");
   const evalOut = readFileSync(`${OUT_DIR}/out-eval.txt`, "utf8").replace(/\s+$/, "");
 
   const server = createConsole({ simulate: true });
@@ -167,31 +164,13 @@ async function main(): Promise<void> {
     await sleep(700);
     await say(10, true);
 
-    // three real calls
-    //
-    // Verbatim output of `npm run replay --no-quotes` over the batch this
-    // project actually placed. `--no-quotes` is why the sentences that
-    // established two of the three are absent: real calls leave no transcript
-    // in this repository, and this video is committed to it.
-    await page.setContent(
-      terminalPage("npm run replay — three real CALL-E calls, judged", liveBatchOut),
-      { waitUntil: "load" },
-    );
-    await installCaption(page);
-    await sleep(900);
-    await say(11);
-    await say(12);
-    await say(13);
-    await say(14);
-    await say(15, true);
-
     // the numbers
     await page.setContent(terminalPage("npm run eval — 400 labelled cases, no calls placed", evalOut), { waitUntil: "load" });
     await installCaption(page);
     await sleep(900);
-    await say(16);
-    await say(17);
-    await say(18, true);
+    await say(11);
+    await say(12);
+    await say(13, true);
 
     await sleep(600);
     await recorder.stop();
