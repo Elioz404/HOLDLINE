@@ -525,20 +525,28 @@ otherwise.
 This project did not exist before the hackathon. Every commit in the public
 history was written during the submission period, in this order:
 
-| | |
+```
+git log --reverse --oneline
+```
+
+| What went in | When |
 | --- | --- |
-| Evidence-gated core, strict E.164, unconditional emergency refusal | `502ac8e` |
-| Parallel queue with per-target evidence gating | `1bb8c4b` |
-| Evaluation harness over 400 labelled cases — and the gate fix it forced | `b22adf3` |
-| Freshness ledger, route cache, webhook intake | `306311b` |
-| MCP server and the `holdline` skill pack | `fbfef67` |
-| Operations console and hardening pass | `0586c01` |
-| Seven live calls, and the three assumptions they disproved | 2026-09-07 |
-| Prose non-answer class added to the corpus, measured, then fixed | `937d1a8` |
-| An eighth live call found the masking gap below, and closed it | `b491f16` |
-| A later call found the gate crediting an unasked field; measured, then fixed | `b491f16` |
-| The first live batch retired the fan-out architecture; one call per target now | `c56148c` |
-| That finding, packaged so anyone can reproduce it | `7fb0dd3` |
+| Evidence-gated core, strict E.164, unconditional emergency refusal | 6 Sep |
+| Parallel queue with per-target evidence gating | 6 Sep |
+| Evaluation harness over 400 labelled cases — and the gate fix it forced | 6 Sep |
+| Freshness ledger, route cache, webhook intake | 6 Sep |
+| MCP server and the `holdline` skill pack | 6 Sep |
+| Operations console and hardening pass | 7 Sep |
+| Seven live calls, and the three assumptions they disproved | 7 Sep |
+| Prose non-answer class added to the corpus, measured, then fixed | 7 Sep |
+| An eighth live call found the masking gap below, and closed it | 9 Sep |
+| A later call found the gate crediting an unasked field; measured, then fixed | 9 Sep |
+| The first live batch retired the fan-out architecture; one call per target now | 9 Sep |
+| That finding, packaged so anyone can reproduce it | 9 Sep |
+
+Dates rather than commit hashes, because this history has been rewritten twice
+to take phone numbers out of it and every hash moved both times. The subjects
+are stable; `git log --reverse --oneline` lines them up against the table.
 
 The last four rows are the ones worth reading. Each one is a defect a real
 telephone found that neither the suite nor the corpus could see, and each was
