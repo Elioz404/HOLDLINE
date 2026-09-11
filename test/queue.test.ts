@@ -61,8 +61,20 @@ describe("planQueue", () => {
   });
 
   it("drops the routing hint before a required segment when space runs out", () => {
-    const plan = planQueue(baseRequest({ goal: "x".repeat(180), routingHint: "y".repeat(60) }));
+    // 150, not 180: the required segments are the goal, "Ask each question out
+    // loud." and the disclosure. A 180-character goal now overruns the 255-char
+    // cap on its own, which is a different failure than the one under test.
+    const plan = planQueue(baseRequest({ goal: "x".repeat(150), routingHint: "y".repeat(60) }));
     expect(plan.task.dropped).toEqual(["routing"]);
+  });
+
+  it("always tells the agent to ask, and never drops that instruction", () => {
+    // The gate credits a field only when a bot turn asked for it. If this
+    // clause can be dropped to make room, the gate can never verify anything
+    // on the calls that needed the room most.
+    const plan = planQueue(baseRequest({ goal: "x".repeat(150), routingHint: "y".repeat(60) }));
+    expect(plan.task.task).toContain("Ask each question out loud.");
+    expect(plan.task.dropped).not.toContain("ask");
   });
 });
 

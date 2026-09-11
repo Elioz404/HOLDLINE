@@ -19,12 +19,13 @@ The same shape fits a billing clerk chasing claim status across payers, or a
 dispatcher checking which supplier has the part on the shelf. Discharge is the
 one it was built against, measured against, and is documented against here.
 
-<img src="docs/screenshots/01-answers-established-and-withheld.png" alt="Three care homes from one batch. Two verified, each field quoting the sentence that established it. One withheld: the nursing level came back populated, but every question the call asked is accounted for by another field, so nothing was asked that this could answer." width="860">
+<img src="docs/screenshots/03-a-verdict-for-every-place.png" alt="The call log: three care homes from one batch, a verdict each. Two verified, one withheld. The panel beside it shows the turns the agent spoke and the field they did or did not establish." width="860">
 
-*One batch, three care homes, three calls placed together. Two answers
-established by the call; one withheld, with the reason.*
+*One batch, three care homes, three calls placed together. Every place gets a
+verdict, and the panel beside it shows the turns that produced it — the answer
+and the evidence for it, on one screen.*
 
-<img src="docs/screenshots/05-on-the-line.png" alt="Three care homes on the line at once, each row showing the call clock past two minutes" width="860">
+<img src="docs/screenshots/02-on-the-line.png" alt="Three care homes on the line at once, each row showing the call clock past two minutes" width="860">
 
 *The wait, which is the point. Three queues at once, on the call's own clock.*
 
@@ -45,20 +46,76 @@ description is not an artifact and this is somebody else's phone line.
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and
 route cache, an MCP server, an operations console that needs no API key, and
-157 tests that place no calls and read no credentials. Twenty-three live calls have
-been placed through CALL-E. Four of them found defects that neither the suite
+164 tests that place no calls and read no credentials. Twenty-eight live calls
+have been placed through CALL-E. Six of them found defects that neither the suite
 nor the corpus could see, and one of them took away the engine’s central design
 decision.
 
 **Try it without installing anything:**
-[holdline-j0ku.onrender.com](https://holdline-j0ku.onrender.com) — the same
-console, public and simulation-only. It sleeps on a free tier, so the first
-request after a quiet spell takes about half a minute to wake. A console
-reachable off its own machine cannot place calls; that is enforced in
-[`src/console/run.ts`](src/console/run.ts), not left to the deployment config.
+[holdline-j0ku.onrender.com](https://holdline-j0ku.onrender.com) — what this is
+and why, with a call that plays out and lands on a verified answer beside a
+withheld one. The console itself is at
+[`/console`](https://holdline-j0ku.onrender.com/console), public and
+simulation-only.
+
+It sleeps on a free tier, so the first request after a quiet spell takes about
+half a minute to wake. A console reachable off its own machine cannot place
+calls; that is enforced in [`src/console/run.ts`](src/console/run.ts), not left
+to the deployment config.
 
 [Status](#status) lists what does not exist, and what the live calls changed.
 Nothing below describes unwritten code.
+
+## Verify it yourself
+
+No artifact of ours can prove this dials a telephone, and none is kept here.
+So place the call yourself, on your own CALL-E account, to your own number.
+The first three steps need no key, reach no network, and ring nobody.
+
+```bash
+git clone https://github.com/Elioz404/HOLDLINE && cd HOLDLINE && npm install
+
+npm test                    # 164 tests, no network, no credentials
+npm run eval                # 400 labelled cases; prints the table in Measured
+
+# Plan a real batch. No key needed: a preview never reaches the network.
+npm run call -- \
+  --ask "Are you accepting new patients this week?" \
+  --to '+1...' \
+  --field accepting="accepting new patients, taking new patients"
+```
+
+That prints the compiled task and its character budget, the batch id and the
+idempotency key derived from it, and one line per number — `will dial` with the
+region CALL-E serves it in, or `refused` with the reason. It ends with *"Plan
+only. Nothing was dialed."*
+
+Then, to place one real call:
+
+```bash
+export CALLE_API_KEY=...     # server-side only, never in client code
+npm run probe -- --check     # confirms the key. Dials nobody, costs nothing.
+
+npm run call -- \
+  --ask "Are you accepting new patients this week?" \
+  --to '+1...' \
+  --field accepting="accepting new patients, taking new patients" \
+  --live
+```
+
+`--live` is not enough on its own: it prints the masked numbers and waits for
+you to type `LIVE`. One call is billed per dialable number.
+
+What comes back is the point. A field the conversation established returns its
+value **with the turn that established it, quoted**. A field it did not returns
+`null` and the reason — `never_asked`, `asked_but_unclear`, `unattributed` — so
+you can read for yourself whether the withholding was right. Run the same
+command again and nothing re-dials: the idempotency key comes from the batch
+id, never from the clock.
+
+The public console at [`/console`](https://holdline-j0ku.onrender.com/console)
+runs this same engine against a local fake, and says so on every screen. It is
+the product without the telephone; the commands above are the telephone.
 
 ## Why
 
@@ -87,7 +144,7 @@ matter how confident the model sounded.
 | Freshness ledger | `src/ledger/facts.ts` | Stores verified facts with the moment and the sentence that established them, and serves them until a per-field TTL expires. |
 | Route cache | `src/ledger/routes.ts` | Reads the menu prompts, any keypad steps and the call duration out of a transcript, and turns a keypad route into a hint for the next call. |
 | Webhook receiver | `src/engine/webhook.ts` | Treats an unsigned delivery as a signal to re-fetch the call, never as a source of truth. |
-| Console | `src/console/` | An operations view over the same engine: plan a batch, watch each call work through the menu and the queue in call-time, read each verdict with the sentence that established it. |
+| Console | `src/console/` | A landing page at `/` and an operations view at `/console`, over the same engine: plan a batch, watch each call work through the menu and the queue in call-time, read each verdict with the sentence that established it. |
 | MCP server | `src/mcp/server.ts` | Exposes `plan_hold`, `run_hold` and `get_verdict` over stdio. Only one of the three can dial, and only on explicit confirmation. |
 | Agent Skill | `skills/holdline/` | `SKILL.md` plus `references/` covering safety, examples, and probe writing. Passes the target repository's validator. |
 | Task compiler | `src/core/task-compiler.ts` | Fits a task into the API's 255-character `task` limit by dropping declared-low-priority segments, and fails rather than truncating a required one. |
@@ -140,12 +197,12 @@ acts on the answer:
 
 | | Answers returned | Never established by the call | |
 | --- | --- | --- | --- |
-| Trusting `structured_result` | 350 | **200** | **57.1% wrong** |
-| Through the gate | 100 | **0** | **0.0% wrong** |
+| Trusting `structured_result` | 355 | **178** | **50.1% wrong** |
+| Through the gate | 133 | **0** | **0.0% wrong** |
 
 More than half of what a caller would have believed, from a plain schema check,
 is a value the conversation never produced. The gate returns none of them. It
-also withholds **50 real answers** it could not attribute — that is the price, and it
+also withholds **44 real answers** it could not attribute — that is the price, and it
 is on the same table rather than in a footnote.
 
 Every figure on this page is printed by `npm run eval`. If a number here and a
@@ -164,13 +221,14 @@ How the gate performs case by case:
 
 | | |
 | --- | --- |
-| Invented values caught | **50/50 — 100%** |
-| Direct asks passed | 50/50 — 100% |
-| Paraphrases wrongly accused | **0/50 — 0%** |
-| Paraphrases withheld | 50/50 — 100% |
-| Prose non-answers caught | **50/50 — 100%** |
-| Genuine prose answers wrongly withheld | **0/50 — 0%** |
-| Topic mentioned but never asked, caught | **50/50 — 100%** |
+| Invented values caught | **45/45 — 100%** |
+| Direct asks passed | 45/45 — 100% |
+| Paraphrases wrongly accused | **0/44 — 0%** |
+| Paraphrases withheld | 44/44 — 100% |
+| Prose non-answers caught | **44/44 — 100%** |
+| Genuine prose answers wrongly withheld | **0/44 — 0%** |
+| Topic mentioned but never asked, caught | **44/44 — 100%** |
+| Questions that arrived without a mark, eaten | **0/44 — 0%** |
 
 The last row is the honest cost, and there is now a lever against it — see
 [Buying the withheld answers back](#buying-the-withheld-answers-back). It is
@@ -201,10 +259,10 @@ borrow its name.
 
 ```
                                   strict        with elimination
-  Invented values caught          50/50  100.0%      50/50  100.0%
-  Answers reported                        100              150
+  Invented values caught          45/45  100.0%      45/45  100.0%
+  Answers reported                        133              177
   ...never established                      0                0
-  Real answers withheld                    50                0
+  Real answers withheld                    44                0
 ```
 
 Half again the answers, and nothing unestablished got through.
@@ -358,9 +416,9 @@ throughout. Under that rule the call reported a person answering at ten
 seconds, on a line where nobody ever picked up.
 
 It also previously reported "time to human". That cannot be computed honestly
-from a transcript: a modern voice IVR is written to sound like a person — the
-sample call's system said *"in a few words, please tell me how I can help
-you"* — and no amount of phrase matching separates that from a receptionist.
+from a transcript: a modern voice IVR is written to sound like a person,
+inviting the caller to say what they need in their own words, and no amount of
+phrase matching separates that from a receptionist.
 `firstNonSystemTurnAtSeconds` survives as a labelled *candidate*, never as a
 measurement, and the headline number moved to call duration, which needs no
 such judgement.
@@ -464,7 +522,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 157 tests, no network, no credentials
+npm test          # 164 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 npm run replay    # judges a saved call; no network, no key, no call
@@ -571,7 +629,7 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**Twenty-three live calls have been placed**, on 2026-09-07 and 2026-09-09,
+**Twenty-eight live calls have been placed**, between 2026-09-07 and 2026-09-11,
 to published automated customer-service lines. **No transcript, recording or
 call artifact from them is kept in this repository.** What follows is what they
 changed, in our own words:
@@ -596,7 +654,7 @@ value in that corpus was one word long.
 The fix went in that order, and the order is the point: the class was added to
 the corpus first, the damage was measured, and only then was the check changed.
 `asked_prose_non_answer` and `asked_prose_answered` now measure both directions
-— 50/50 caught, 0/50 genuine prose answers wrongly withheld — so the trade is a
+— 44/44 caught, 0/44 genuine prose answers wrongly withheld — so the trade is a
 number rather than a hope.
 
 **An eighth call, on 2026-09-09, did it again — this time to the masking.** We
@@ -619,10 +677,9 @@ Both times the suite was clean and the telephone was not.
 
 **A third call, the same day, caught the gate crediting a field nobody asked
 about.** We dialled a government recorded-forecast line and asked two things.
-The agent asked the first — *"is this the National Weather Service Seattle
-office?"* — and the recording answered it. It never asked the second. It only
-introduced itself as *"an automated assistant checking the forecast for
-today"*, and those words sat inside the probe for the field, so
+The agent put the first as a question and the recording answered it. It never
+asked the second. It only opened by naming the very thing it had been sent to
+find out, and those words sat inside the probe for that field, so
 `findSupportingTurn` matched a statement of purpose and the gate returned
 **`verified`** on a value no question produced.
 
@@ -639,8 +696,8 @@ Measured before it was fixed, as with the last one. Adding
 **33.3% wrong** across 50 cases the gate caught none of. A supporting turn must
 now actually request something — a question mark, or a construction like *"I
 wanted to check whether"*, because *"I need to know if the part is in stock"*
-asks a real question without one. After the fix: **50/50 caught, and direct
-asks still 50/50**, so nothing that genuinely asked was lost.
+asks a real question without one. After the fix: **44/44 caught, and direct
+asks still 45/45**, so nothing that genuinely asked was lost.
 
 ### The batch that retired the architecture
 
@@ -696,6 +753,112 @@ documentation implies, so the batch path passed its tests the whole time. It
 now answers only about the recipients a call actually dialled. A fake built
 from documentation models the documentation; only a telephone models the
 telephone.
+
+### The pipeline that disagreed with itself
+
+Four more calls on 2026-09-11, to a government recorded-forecast line and to a
+national carrier's speech-driven booking system, two each. The first two came
+back with every field `never_asked`, and both times that was correct: the agent put no question
+of its own on either call. On the first it worked a menu and gave up. On the
+second it answered the other party's questions for seven minutes, supplied a
+reference number when prompted, and then sat in a queue responding politely to
+recorded announcements until the line dropped.
+
+The defect is ours, and it had been there from the start. The Evidence Gate
+credits a field only when a bot turn actually asked for it. The compiled task —
+the instruction this engine writes for the agent — carried a goal, an optional
+routing hint and a disclosure clause, **and nothing that told the agent to
+ask.** The probes' phrases did reach the API, but only as `description` text on
+the result schema, which guides extraction and never reaches the conversation.
+
+So the gate demanded evidence the compiler never requested. The suite did not
+see it because the fake transport returns transcripts already full of
+questions, and 400 labelled cases did not see it because every case in the
+corpus begins with a transcript that exists. A pipeline can disagree with
+itself in the one seam that no fixture covers: the instruction that leaves this
+process and the judgement that comes back.
+
+`planQueue` now emits a fourth required segment — twenty-seven characters, kept
+short because CALL-E caps the task at 255 and every one of them is taken from
+the caller's own question. A test pins it as undroppable: if it could be
+dropped to make room, the gate could never verify anything on the calls that
+needed the room most.
+
+The gate also stopped blaming the place for what the call did. Where no bot
+turn asked anything at all, it now says so once instead of reporting
+`never_asked` field by field, because an operator deciding whether to dial
+again needs to know it was the call that failed.
+
+**The fix was then measured against the same two lines.** On the recorded
+forecast line the agent still asked nothing, and the gate now says so once
+instead of blaming each field in turn. On the speech-driven system it asked —
+the gate found a supporting turn, moved that field from `never_asked` to
+`asked_but_unclear`, and quoted the sentence it had matched. That verdict is
+the correct one and not a convenient one: the question was put, an answer had
+begun, and the line dropped before it arrived. Nothing was credited. The
+progression from *no question* to *a question with no usable answer* is the
+whole of what the clause was meant to buy, and it is the first time this gate
+has found a supporting turn on a real telephone.
+
+**On reporting completion, the platform is inconsistent rather than wrong.**
+Two of these four calls returned `task_completed: true` at high confidence —
+0.82 and 0.78 — while the same payloads recorded that nothing had been
+obtained. The other two returned `false` at 0.82 and 0.85, which is accurate.
+Four calls is not a measurement and is not offered as one; it is the reason a
+caller cannot treat that flag as an answer, which is the premise this whole
+project rests on.
+
+**Two of the four also showed the agent speaking a keypad choice rather than
+sending one** — saying the digit aloud, and on one call announcing that it was
+pressing. CALL-E's own summary described it that way unprompted. The keypad
+boundary above was observed once; it is now reproduced on two unrelated
+systems, with the detail that the agent believes it has acted.
+
+### The question that arrived without its mark
+
+One more call to the same speech-driven system, testing whether the transfer
+could be refused by wording it differently. It could not. But partway through
+the hold queue the agent put its question anyway, in plain interrogative order,
+and the turn arrived truncated — the mark never came. The gate returned
+`never_asked` and withheld a field the agent had genuinely asked about.
+
+Worse than the miss is what it did credit. Three other turns from the same call
+were logged as questions, because each carried a mark: the agent asking whether
+the transfer had failed, asking for a repeat, asking whether it could be heard.
+Questions about the call. The one question about the subject was the one lost.
+
+This defect sits in direct tension with the third one above, and the tension is
+the whole of the fix. That one says a statement of purpose naming the topic
+must not count. This one says an inverted clause about the topic must. The
+difference is not the vocabulary, which is nearly identical — it is the word
+order, and only at the start of a clause. The new signal is anchored there for
+that reason, and both classes are now measured on every run so neither number
+can move alone.
+
+Measured in that order, as with the others. Adding `asked_inverted_no_mark` to
+the corpus showed the gate eating **44 of 44** — every genuine question that
+arrived without a mark, thrown away. Overall accuracy read **78.0%** with the
+class present and the signal absent. After the fix: **0 of 44 eaten**,
+statements of purpose still caught **44/44**, nothing never-established
+credited, and accuracy **89.0%**. Real answers withheld fell from 88 to 44.
+
+`test/eval.test.ts` now pins both directions. If the mention-only number ever
+moves, the result above was bought by undoing an earlier fix, and the suite
+says so.
+
+**A prohibition in a task is not a control.** One of these calls was instructed
+to refuse a transfer to a person. Offered one, it accepted, waited thirteen
+minutes through hold music and advertisements, and a human answered — on a line
+nobody had consented to be recorded on. The lesson was already written down in
+`src/probe/validate-traversal.ts`: a prompt made of prohibitions gets a
+refusal, and positive framing with a concrete action is what survives contact.
+So the instruction was rewritten that way and the call placed again. It failed
+the same: offered a transfer, the agent asked for it to be retried and then
+waited fifteen minutes. Neither a prohibition nor a concrete positive action
+steers it. The
+call task is the only lever over agent behaviour that this API exposes — there
+is no maximum-duration parameter — which makes how it is worded a safety
+control rather than a matter of style.
 
 The gate's other honest cost is older and still published: a fact established
 by *absence* cannot be credited. If nobody human ever comes on the line, then

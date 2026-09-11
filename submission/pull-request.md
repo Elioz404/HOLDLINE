@@ -49,13 +49,14 @@ offline evaluation harness over a seeded, labelled corpus of 400 cases:
 
 | | |
 | --- | --- |
-| Invented values caught | 50/50 — 100% |
-| Direct asks passed | 50/50 — 100% |
-| Paraphrases wrongly accused of invention | 0/50 — 0% |
-| Paraphrases withheld | 50/50 — 100% |
-| Prose non-answers caught | 50/50 — 100% |
-| Genuine prose answers wrongly withheld | 0/50 — 0% |
-| Topic mentioned but never asked, caught | 50/50 — 100% |
+| Invented values caught | 45/45 — 100% |
+| Direct asks passed | 45/45 — 100% |
+| Paraphrases wrongly accused of invention | 0/44 — 0% |
+| Paraphrases withheld | 44/44 — 100% |
+| Prose non-answers caught | 44/44 — 100% |
+| Genuine prose answers wrongly withheld | 0/44 — 0% |
+| Topic mentioned but never asked, caught | 44/44 — 100% |
+| Questions that arrived without a mark, eaten | 0/44 — 0% |
 
 The last row is the honest cost and is published deliberately. A paraphrase is
 still withheld, because an answer that cannot be attributed to a question
@@ -138,16 +139,45 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 157 tests with no network and no credentials,
+The engine repository's suite is 164 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire
 contract.
 
+## Verification with a call
+
+No artifact of ours can prove this dials a telephone, and by design none is
+kept. So the check that settles it is yours to run, on your own account and
+your own number:
+
+```bash
+git clone https://github.com/Elioz404/HOLDLINE && cd HOLDLINE && npm install
+
+# Plans a real batch. No key needed: a preview never reaches the network.
+npm run call -- \
+  --ask "Are you accepting new patients this week?" \
+  --to '+1...' \
+  --field accepting="accepting new patients, taking new patients"
+
+export CALLE_API_KEY=...
+npm run probe -- --check     # confirms the key. Dials nobody, costs nothing.
+
+# Same command, plus --live. Prints the masked numbers and waits for you to
+# type LIVE. One call billed per dialable number.
+npm run call -- --ask "..." --to '+1...' --field accepting="..." --live
+```
+
+A field the conversation established comes back with the turn that established
+it, quoted. A field it did not comes back `null` with the reason, so the
+withholding can be judged rather than trusted. Re-running the identical command
+replays instead of dialing: the idempotency key derives from the batch id,
+never from the clock.
+
 ## Note on live calls
 
-Twenty-three live calls were placed on 2026-09-07 and 2026-09-09 to published
-automated customer-service lines. **No transcript, recording, call id or other
+Twenty-eight live calls were placed between 2026-09-07 and 2026-09-11 to
+published automated customer-service lines. **No transcript, recording, call id or other
 call artifact from them is included in this contribution or kept in the linked
 repository.** What follows is a summary of what they changed, in our own words.
 
@@ -173,13 +203,66 @@ that corpus was one word long.
 
 The fix went in that order: the class was added to the corpus, the damage was
 measured, then the check was changed. `asked_prose_non_answer` and
-`asked_prose_answered` now measure both directions — 50/50 caught, 0/50 genuine
+`asked_prose_answered` now measure both directions — 44/44 caught, 0/44 genuine
 prose answers wrongly withheld — so the trade is a number rather than a hope.
 
 Keypad traversal is not claimed. One system stopped accepting speech and
 required DTMF; the agent had only a voice, and the call ended there. That is a
 limit, it was observed rather than assumed, and nothing here pretends
 otherwise.
+
+The most recent four calls found a defect in this pipeline's own seam. The
+Evidence Gate credits a field only when a bot turn actually asked for it, and
+the compiled task — the instruction the engine writes for the agent — carried a
+goal, an optional routing hint and a disclosure, and nothing that told the
+agent to ask. The probes' phrases reached the API only as result-schema
+descriptions, which guide extraction and never reach the conversation. Both
+calls came back with the agent having put no question of its own, every field
+`never_asked`, and the gate correct each time for a reason the compiler had
+made inevitable. The suite missed it because the fake transport returns
+transcripts already full of questions; 400 labelled cases missed it because
+every case starts from a transcript that exists. The task now carries a fourth
+required segment, pinned by a test as undroppable.
+
+The clause was then measured on the same two lines. On the recorded line the
+agent still asked nothing and the gate now says so once rather than per field.
+On the speech-driven system it asked: the gate found a supporting turn, quoted
+it, and moved that field from `never_asked` to `asked_but_unclear` — correct,
+because the question was put and the line dropped before an answer arrived.
+Nothing was credited. It is the first supporting turn this gate has found on a
+real telephone.
+
+Two of those four calls returned `task_completed: true` at high confidence
+while the same payloads recorded that nothing had been obtained; the other two
+returned `false`. Four calls is not a measurement and is not offered as one.
+Two of the four also showed the agent speaking a keypad choice aloud instead of
+sending one, which CALL-E's own summary described unprompted.
+
+A fifth call rewrote that same instruction as a concrete positive action
+rather than a prohibition, and it failed the same way: offered a transfer, the
+agent asked for it to be retried and then waited fifteen minutes. Partway
+through that wait it did put its question, in plain interrogative order, and
+the turn arrived truncated before the mark. The gate returned `never_asked` and
+threw the field away, while logging three other turns from the same call as
+questions because each carried a mark — all three about the call rather than
+the subject.
+
+That defect sits against the mention-only one above, and the tension is the
+fix: a statement of purpose naming the topic must not count, an inverted clause
+about it must, and the difference is word order at the start of a clause.
+Measured in the project's usual order — `asked_inverted_no_mark` added to the
+corpus first, the damage read at **44 of 44 eaten** and accuracy at **78.0%**,
+then the signal added: **0 of 44 eaten**, mention-only still **44/44** caught,
+nothing never-established credited, accuracy **89.0%**, and real answers
+withheld down from 88 to 44. The suite pins both directions, so the second
+number cannot be bought with the first.
+
+One of the earlier calls was instructed to refuse a transfer to a person,
+accepted one anyway, and waited thirteen minutes on hold until a human
+answered. The call
+task is the only lever over agent behaviour this API exposes — there is no
+maximum-duration parameter — so a prohibition written into it is not a control.
+That is recorded here as a limit of the approach, observed rather than assumed.
 
 Everything else in this submission — the evaluation corpus, the console
 scenarios, the fake transport — is synthetic and labelled as such. No figure

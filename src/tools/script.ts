@@ -83,8 +83,8 @@ export const SCRIPT: readonly ScriptLine[] = [
     speech: "Across 400 labelled cases, more than half of what a caller would have believed was never established by the call.",
   },
   {
-    caption: "Through the gate: <b>zero</b>. And the cost of that is on the same screen — 50 real answers withheld.",
-    speech: "Through the gate: zero. And the cost of that is on the same screen. 50 real answers withheld.",
+    caption: "Through the gate: <b>zero</b>. And the cost of that is on the same screen — 44 real answers withheld.",
+    speech: "Through the gate: zero. And the cost of that is on the same screen. 44 real answers withheld.",
   },
   {
     caption: "A phone agent that always answers is easy. One that tells you when it doesn’t know is the one you can deploy.",

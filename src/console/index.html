@@ -6,197 +6,407 @@
 <title>HOLDLINE console</title>
 <style>
   :root {
-    --ground:#F4F6F9; --surface:#FFFFFF; --surface-2:#EDF0F5;
-    --ink:#131820; --ink-2:#3A4351; --muted:#626D7C;
-    --line:#DCE1E9; --line-strong:#C3CBD6;
-    --hold:#B26A05; --hold-w:#FBEBD2;
-    --live:#157A51; --live-w:#DDF0E7;
-    --drop:#B03626; --drop-w:#F7E1DE;
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --ground:#F3F4F8; --card:#FFFFFF; --sunk:#F7F8FB;
+    --ink:#101420; --ink-2:#454E5E; --muted:#798394;
+    --line:#E6E9EF; --line-2:#D6DBE4;
+    --brand:#7C5CFF; --brand-w:#F1EEFF;
+    --live:#10875C; --live-w:#E4F4EC;
+    --hold:#B0720A; --hold-w:#FCF1DE;
+    --drop:#C03A28; --drop-w:#FCE8E4;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --r:16px; --r-sm:10px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 12px 32px -16px rgba(16,24,40,.16);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --ground:#0E1218; --surface:#161C24; --surface-2:#1D242E;
-      --ink:#E7ECF3; --ink-2:#BCC5D1; --muted:#8892A0;
-      --line:#262E39; --line-strong:#37414F;
-      --hold:#E9A63F; --hold-w:#3A2A0F;
-      --live:#46BE8B; --live-w:#0F2E23;
-      --drop:#E37A69; --drop-w:#351A16;
+      --ground:#0A0D13; --card:#141922; --sunk:#1A202B;
+      --ink:#E9EDF4; --ink-2:#BAC3D1; --muted:#828D9E;
+      --line:#232A36; --line-2:#323B49;
+      --brand:#9B83FF; --brand-w:#241E3D;
+      --live:#45C08C; --live-w:#0E2C21;
+      --hold:#E5A33C; --hold-w:#31230C;
+      --drop:#E67F6C; --drop-w:#321712;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 36px -18px rgba(0,0,0,.7);
     }
   }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.55; }
-  .wrap { max-width:1180px; margin:0 auto; padding:22px 20px 80px; }
-  h1,h2,h3 { margin:0; line-height:1.2; }
-  a { color:var(--hold); }
-  button, input, textarea { font:inherit; color:inherit; }
-  :focus-visible { outline:2px solid var(--hold); outline-offset:2px; }
+  /* A `display` rule on a component beats the `hidden` attribute, and the page
+     opened on a row of zeros because of it. Global, so the next component with
+     a display rule cannot repeat the bug. */
+  [hidden] { display:none !important; }
+  html,body { height:100%; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { margin:0; line-height:1.25; }
+  button,input,textarea { font:inherit; color:inherit; }
+  :focus-visible { outline:2px solid var(--brand); outline-offset:2px; border-radius:6px; }
+  svg { flex:none; }
 
-  header { display:flex; flex-wrap:wrap; align-items:center; gap:14px; padding-bottom:18px; border-bottom:1px solid var(--line); }
-  .lamp { width:10px; height:10px; border-radius:50%; background:var(--hold); box-shadow:0 0 0 3px var(--hold-w); flex:none; }
-  @media (prefers-reduced-motion: no-preference) { .lamp { animation:blink 2.4s ease-in-out infinite; } }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
-  .wordmark { font-size:22px; font-weight:800; letter-spacing:-.03em; }
-  .wordmark span { color:var(--hold); }
-  .tagline { color:var(--muted); font-size:13px; }
-  .badge { margin-left:auto; font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
-           padding:5px 10px; border-radius:5px; border:1px solid var(--hold); color:var(--hold); background:var(--hold-w); }
-  .badge.live { border-color:var(--drop); color:var(--drop); background:var(--drop-w); }
+  /* ── shell: three cards on a light ground ─────────────────────────── */
+  .app { display:grid; grid-template-columns:224px minmax(400px,1.45fr) minmax(340px,1fr);
+         gap:14px; padding:14px; min-height:100vh; align-items:start; }
+  @media (max-width:1240px){ .app { grid-template-columns:210px 1fr; } .detail { grid-column:1/-1; } }
+  @media (max-width:860px){ .app { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r);
+          box-shadow:var(--shadow); }
 
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--line);
-           border:1px solid var(--line); border-radius:8px; overflow:hidden; margin:18px 0 22px; }
-  .stats div { background:var(--surface); padding:11px 14px; }
-  .stats .k { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
-  .stats .v { font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
+  /* ── sidebar ──────────────────────────────────────────────────────── */
+  .side { padding:18px 14px; display:flex; flex-direction:column; gap:6px;
+          position:sticky; top:14px; min-height:calc(100vh - 28px); }
+  /* The full-height sidebar only belongs in the three-column layout, where it
+     sits beside content tall enough to match. At two columns the detail card
+     drops to a second row, so a viewport-tall sidebar sets that row's height
+     and pushes the transcript a screen down behind a band of empty grey —
+     clicking a place then looked like it did nothing at all. */
+  @media (max-width:1240px){ .side { min-height:0; } }
+  @media (max-width:860px){ .side { position:static; } }
+  .logo { display:flex; align-items:center; gap:10px; padding:4px 8px 18px; }
+  .dot { width:26px; height:26px; border-radius:50%; background:var(--brand);
+         box-shadow:0 0 0 4px var(--brand-w); flex:none; }
+  @media (prefers-reduced-motion: no-preference){ .dot { animation:pulse 2.6s ease-in-out infinite; } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+  .logo b { font-size:16px; font-weight:800; letter-spacing:-.02em; }
 
-  .cols { display:grid; grid-template-columns:minmax(320px,400px) 1fr; gap:22px; align-items:start; }
-  @media (max-width:860px){ .cols{ grid-template-columns:1fr; } }
+  .nav { display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+         padding:9px 10px; border-radius:var(--r-sm); border:0; background:transparent;
+         color:var(--ink-2); cursor:pointer; font-size:13.5px; font-weight:500; }
+  .nav:hover { background:var(--sunk); }
+  .nav[aria-current="page"] { background:var(--sunk); color:var(--ink); font-weight:600; }
+  .nav svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.7; }
 
-  .panel { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px; }
-  /* The batch stays on screen while the verdicts scroll past it: an operator
-     reading a withheld field should still be able to see what was asked. */
-  .cols > .panel { position:sticky; top:16px; }
-  @media (max-width:860px){ .cols > .panel { position:static; } }
-  .panel h2 { font-size:15px; margin-bottom:14px; }
-  label { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:14px 0 5px; }
-  label:first-of-type { margin-top:0; }
+  .side-foot { padding-top:16px; margin-top:10px; border-top:1px solid var(--line); display:grid; gap:12px; }
+  .chip { display:flex; align-items:center; gap:9px; border:1px solid var(--line);
+          border-radius:var(--r-sm); padding:9px 10px; background:var(--sunk); }
+  .chip .k { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--muted); }
+  .chip .val { font-size:12.5px; font-weight:600; }
+  .chip.sim .val { color:var(--hold); }
+  .chip.live .val { color:var(--drop); }
+  .mini { display:grid; gap:7px; padding:0 10px; }
+  .mini div { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+  .mini .k { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--muted); }
+  .mini .v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* ── centre card ──────────────────────────────────────────────────── */
+  .main { padding:22px 22px 18px; min-width:0; }
+  .head { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .head h1 { font-size:20px; font-weight:800; letter-spacing:-.025em; }
+  .head .sub { color:var(--muted); font-size:12.5px; }
+
+  .toolbar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .fieldwrap { display:flex; align-items:center; gap:8px; border:1px solid var(--line);
+               border-radius:var(--r-sm); padding:7px 11px; background:var(--card); min-width:0; }
+  .fieldwrap svg { width:14px; height:14px; stroke:var(--muted); fill:none; stroke-width:1.8; }
+  .fieldwrap input { border:0; background:transparent; outline:0; min-width:0; width:100%; font-size:13px; }
+
+  label { display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.11em;
+          text-transform:uppercase; color:var(--muted); margin:16px 0 6px; }
+  .form label:first-child { margin-top:0; }
   input[type=text], textarea {
-    width:100%; background:var(--surface-2); border:1px solid var(--line); border-radius:6px;
-    padding:8px 10px; font-family:var(--mono); font-size:12.5px;
-  }
+    width:100%; background:var(--sunk); border:1px solid var(--line); border-radius:var(--r-sm);
+    padding:10px 12px; font-family:var(--mono); font-size:12.5px; line-height:1.5; }
+  input[type=text]:focus, textarea:focus { background:var(--card); border-color:var(--line-2); }
   textarea { resize:vertical; min-height:64px; }
-  .hint { color:var(--muted); font-size:11.5px; margin-top:4px; }
+  .hint { color:var(--muted); font-size:11.5px; margin-top:5px; }
 
-  .row { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
-  button {
-    border:1px solid var(--line-strong); background:var(--surface-2); color:var(--ink);
-    padding:9px 15px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px;
-  }
-  button:hover { border-color:var(--hold); }
-  button.primary { background:var(--hold); border-color:var(--hold); color:#fff; }
-  button:disabled { opacity:.45; cursor:not-allowed; }
-  .confirm { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:12.5px; color:var(--ink-2); }
+  .row { display:flex; gap:9px; margin-top:18px; flex-wrap:wrap; }
+  button.btn { border:1px solid var(--line-2); background:var(--card); color:var(--ink);
+       padding:9px 16px; border-radius:var(--r-sm); cursor:pointer; font-weight:600; font-size:13px; }
+  button.btn:hover:not(:disabled) { border-color:var(--brand); }
+  button.btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
+  button.btn.primary:hover:not(:disabled) { filter:brightness(1.08); }
+  button.btn:disabled { opacity:.4; cursor:not-allowed; }
+  .confirm { display:flex; align-items:flex-start; gap:9px; margin-top:14px;
+             font-size:12.5px; color:var(--ink-2); }
+  .confirm label { margin:0; text-transform:none; letter-spacing:0; font-family:var(--sans);
+                   font-size:12.5px; color:var(--ink-2); }
 
-  .meter { height:5px; background:var(--surface-2); border-radius:3px; overflow:hidden; margin-top:7px; border:1px solid var(--line); }
-  .meter i { display:block; height:100%; background:var(--hold); }
-  .taskbox { font-family:var(--mono); font-size:12px; background:var(--surface-2); border:1px solid var(--line);
-             border-radius:6px; padding:10px; white-space:pre-wrap; word-break:break-word; }
+  .meter { height:4px; background:var(--sunk); border-radius:3px; overflow:hidden;
+           margin-top:9px; border:1px solid var(--line); }
+  .meter i { display:block; height:100%; background:var(--brand); }
+  .taskbox { font-family:var(--mono); font-size:12px; background:var(--sunk);
+             border:1px solid var(--line); border-radius:var(--r-sm); padding:11px;
+             white-space:pre-wrap; word-break:break-word; }
 
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:15px 17px; margin-bottom:12px; }
-  .card.ok { border-left:3px solid var(--live); }
-  .card.held { border-left:3px solid var(--drop); }
-  .card header { border:0; padding:0; display:flex; align-items:baseline; gap:10px; }
-  .who { font-weight:700; }
+  /* ── table ────────────────────────────────────────────────────────── */
+  .tbl { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
+  /* Four columns, not five: the masked number rides under the place name the
+     way it does on a call sheet. A fifth column left the first one 50px wide
+     and broke every name across three lines. */
+  .tbl th:nth-child(1), .tbl td:nth-child(1) { width:auto; }
+  .tbl th:nth-child(2), .tbl td:nth-child(2) { width:74px; }
+  /* 136px so the widest verdict this console prints, "asked but unclear" at
+     133px, sits inside its own cell instead of over the next one. */
+  .tbl th:nth-child(3), .tbl td:nth-child(3) { width:136px; }
+  /* "1 kept / 1 withheld" measures 127px, so 120 pushed it past the table's
+     own right edge. 140 holds it, and the wrap below catches a two-digit
+     count instead of letting it spill again. */
+  .tbl th:nth-child(4), .tbl td:nth-child(4) { width:152px; }
+  /* The live detail line is the phase the call was in. Once a verdict lands it
+     is a stale sentence under a finished row, so it goes. */
+  .tbl tr.done [data-detail] { display:none; }
+  .tbl th { text-align:left; font-size:11.5px; font-weight:600; color:var(--muted);
+            padding:0 12px 9px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .tbl td { padding:12px; border-bottom:1px solid var(--line); vertical-align:top; font-size:13px; }
+  .tbl tbody tr { cursor:pointer; }
+  .tbl tbody tr:hover td { background:var(--sunk); }
+  .tbl tbody tr[aria-selected="true"] td { background:var(--sunk); }
+  .tbl tbody tr[aria-selected="true"] td:first-child { box-shadow:inset 3px 0 0 var(--brand); }
+  .place { font-weight:600; }
   .num { font-family:var(--mono); font-size:12px; color:var(--muted); }
-  .verdict { margin-left:auto; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
-             padding:3px 8px; border-radius:4px; }
-  .verdict.ok { background:var(--live-w); color:var(--live); }
-  .verdict.held { background:var(--drop-w); color:var(--drop); }
+  .nums { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink-2); }
 
-  .field { display:grid; grid-template-columns:1fr; gap:3px; padding:10px 0; border-top:1px solid var(--line); }
-  .field .name { font-family:var(--mono); font-size:12px; }
-  .field .val { font-weight:600; }
-  .field .val.null { color:var(--drop); font-family:var(--mono); font-weight:400; }
-  .quote { color:var(--ink-2); font-size:12.5px; border-left:2px solid var(--line-strong); padding-left:9px; margin-top:3px; }
-  .why { color:var(--muted); font-size:12px; margin-top:3px; }
-  .tag { font-family:var(--mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
+  /* One pill per row, in the State column, each sized to its own label. An
+     earlier version pinned them all to the width of the longest verdict; that
+     was wider than the column itself, so every pill hung 28px past the cell
+     edge. What actually read as ragged was never the widths — it was a second
+     pill in the answers column landing on its own baseline, and that one is
+     now plain text. */
+  .pill { display:inline-flex; align-items:center; gap:6px;
+          font-family:var(--mono); font-size:9.5px; letter-spacing:.09em; text-transform:uppercase;
+          padding:4px 9px; border-radius:999px; background:var(--sunk); color:var(--muted);
+          white-space:nowrap; box-sizing:border-box; }
+  .pill.ok { background:var(--live-w); color:var(--live); }
+  .pill.held { background:var(--drop-w); color:var(--drop); }
+  .pill.wait { background:var(--hold-w); color:var(--hold); }
+  .pill i { width:6px; height:6px; border-radius:50%; background:currentColor; flex:none; }
 
-  .board { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:6px 17px 12px; margin-bottom:14px; }
-  .board h2 { font-size:15px; margin:12px 0 4px; }
-  .liverow { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:12px; padding:9px 0; border-top:1px solid var(--line); }
-  .liverow .who { font-weight:600; font-size:13.5px; }
-  .liverow .detail { color:var(--muted); font-size:12px; margin-top:2px; }
-  .clock { font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink-2); }
-  .phase { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
-           padding:3px 8px; border-radius:4px; background:var(--surface-2); color:var(--muted); min-width:76px; text-align:center; }
-  .phase.menu    { background:var(--surface-2); color:var(--ink-2); }
-  .phase.holding { background:var(--hold-w); color:var(--hold); }
-  .phase.answered,.phase.asking { background:var(--live-w); color:var(--live); }
-  .speed { font-family:var(--mono); font-size:11px; color:var(--muted); padding:8px 0 2px; }
-  .summary { display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; background:var(--surface);
-             border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
-  .summary .big { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
-  .summary .lbl { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
-  .summary .unit { display:flex; align-items:baseline; gap:7px; }
-  .summary .unit.held .big, .summary .unit.held .lbl { color:var(--drop); }
-  .summary .unit.ok .big { color:var(--live); }
-  .summary .sep { width:1px; align-self:stretch; background:var(--line); }
-  .card.held { border-left:3px solid var(--drop); box-shadow:inset 0 0 0 1px var(--drop); }
-  .card.held > header .who::after { content:"— answer withheld"; margin-left:8px; font-weight:500; font-size:12px; color:var(--drop); }
-  .empty { color:var(--muted); padding:26px 4px; }
-  .err { background:var(--drop-w); border:1px solid var(--drop); color:var(--drop); padding:11px 13px; border-radius:7px; margin-bottom:12px; font-size:13px; }
-  .notice { background:var(--hold-w); border-left:3px solid var(--hold); padding:11px 14px; border-radius:0 7px 7px 0; font-size:12.5px; margin-bottom:16px; }
-  footer { margin-top:34px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+  /* The answers column carries no pill at all. Two badges on one row landed
+     on different baselines whenever the second wrapped, and the colour alone
+     says as much as a second box did. */
+  /* One line. "1 kept / 1 withheld" measures 127px and the column below is
+     152, so a two-digit count still fits rather than breaking the phrase in
+     half across two rows. */
+  .kept { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink-2);
+          font-size:12.5px; white-space:nowrap; }
+  .kept .held { color:var(--drop); }
+  .kept .sep { color:var(--line-2); margin:0 5px; }
+
+  .again { border:1px solid var(--line-2); background:var(--card); color:var(--ink-2);
+           font-size:12px; font-weight:600; padding:5px 11px; border-radius:999px;
+           cursor:pointer; font-family:inherit; }
+  .again:hover { border-color:var(--brand); color:var(--brand); }
+
+  .out { display:flex; flex-direction:column; gap:2px; margin-top:12px;
+         padding-top:12px; border-top:1px solid var(--line); }
+  .out a { font-size:12px; color:var(--muted); text-decoration:none; padding:4px 8px;
+           border-radius:6px; }
+  .out a:hover { color:var(--brand); background:var(--sunk); }
+
+  .tbl tbody tr.liverow:focus-visible { outline:2px solid var(--brand); outline-offset:-2px; }
+
+  .tfoot { display:flex; align-items:center; gap:12px; padding-top:14px; flex-wrap:wrap; }
+  .tfoot .count { color:var(--muted); font-size:12.5px; }
+  .tfoot .spacer { margin-left:auto; }
+
+  /* ── detail card ──────────────────────────────────────────────────── */
+  .detail { padding:22px 22px 18px; position:sticky; top:14px; min-width:0; }
+  @media (max-width:1240px){ .detail { position:static; } }
+  .detail-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
+  .detail-head h2 { font-size:15px; font-weight:700; letter-spacing:-.01em; }
+  .detail-head .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  .x { margin-left:auto; border:0; background:transparent; cursor:pointer; color:var(--muted);
+       padding:4px; border-radius:6px; line-height:0; }
+  .x:hover { background:var(--sunk); color:var(--ink); }
+  .x svg { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.9; }
+
+  /* Where the reference shows a waveform this shows the call's own clock:
+     which phase it was in, and for how long. There is no audio to draw, and
+     drawing one would be a picture of something that did not happen. */
+  .timeline { border:1px solid var(--line); border-radius:var(--r-sm); padding:12px 13px;
+              background:var(--sunk); margin-bottom:16px; }
+  .track { display:flex; height:8px; border-radius:999px; overflow:hidden; background:var(--card);
+           border:1px solid var(--line); }
+  .track span { display:block; height:100%; }
+  .track .menu { background:var(--line-2); }
+  .track .holding { background:var(--hold); }
+  .track .answered, .track .asking { background:var(--live); }
+  .ticks { display:flex; justify-content:space-between; font-family:var(--mono);
+           font-size:10px; color:var(--muted); margin-top:7px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:9px; font-size:11px; color:var(--muted); }
+  .legend b { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+
+  .tabs { display:flex; gap:4px; background:var(--sunk); border:1px solid var(--line);
+          border-radius:var(--r-sm); padding:4px; margin-bottom:14px; }
+  .tab { flex:1; border:0; background:transparent; padding:7px 10px; border-radius:7px;
+         cursor:pointer; font-size:12.5px; font-weight:600; color:var(--muted); }
+  .tab[aria-selected="true"] { background:var(--card); color:var(--ink); box-shadow:var(--shadow); }
+
+  .turn { display:flex; gap:10px; padding:11px 12px; border-radius:var(--r-sm); margin-bottom:8px; }
+  .turn.bot { background:var(--sunk); }
+  .avatar { width:26px; height:26px; border-radius:50%; background:var(--card);
+            border:1px solid var(--line); display:grid; place-items:center; flex:none; }
+  .avatar svg { width:13px; height:13px; stroke:var(--muted); fill:none; stroke-width:1.7; }
+  .turn.bot .avatar { background:var(--brand-w); border-color:transparent; }
+  .turn.bot .avatar svg { stroke:var(--brand); }
+  .turn .meta { font-size:11.5px; color:var(--muted); margin-bottom:2px; }
+  .turn .meta b { color:var(--ink-2); font-weight:600; font-size:12.5px; margin-right:7px; }
+  .turn .said { font-size:13px; color:var(--ink); }
+
+  .ev { border:1px solid var(--line); border-radius:var(--r-sm); padding:13px; margin-bottom:10px; }
+  .ev.ok { border-left:3px solid var(--live); }
+  .ev.held { border-left:3px solid var(--drop); }
+  .ev .name { font-family:var(--mono); font-size:12px; color:var(--ink-2); }
+  .ev .val { font-weight:700; font-size:16px; margin-top:2px; }
+  .ev .val.null { color:var(--drop); font-family:var(--mono); font-weight:400; font-size:13px; }
+  .quote { color:var(--ink-2); font-size:12.5px; border-left:2px solid var(--line-2);
+           padding-left:10px; margin-top:7px; }
+  .why { color:var(--muted); font-size:12px; margin-top:5px; }
+
+  .empty { color:var(--muted); font-size:13px; padding:28px 2px; }
+  .err { background:var(--drop-w); border:1px solid var(--drop); color:var(--drop);
+         padding:12px 14px; border-radius:var(--r-sm); margin-bottom:12px; font-size:13px; }
+  .notice { background:var(--hold-w); border:1px solid var(--hold); color:var(--ink-2);
+            padding:12px 14px; border-radius:var(--r-sm); font-size:12.5px; margin-bottom:16px; }
+  .notice strong { color:var(--hold); }
+  .notice code { font-family:var(--mono); font-size:11.5px; background:var(--card);
+                 border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  /* The command gets its own strip. Inline, it wrapped into a row of little
+     boxes and stopped reading as one command. */
+  .notice .cmd { font-family:var(--mono); font-size:11.5px; line-height:1.6;
+                 background:var(--card); border:1px solid var(--line);
+                 border-radius:var(--r-sm); padding:9px 11px; margin:9px 0;
+                 overflow-x:auto; white-space:nowrap; color:var(--ink); }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
 
-  <header>
-    <span class="lamp" aria-hidden="true"></span>
-    <div>
-      <div class="wordmark">HOLDLINE<span>.</span></div>
-      <div class="tagline">Discharge planning — finding a bed, and only trusting the answers the call established.</div>
+  <aside class="side card">
+    <div class="logo"><span class="dot" aria-hidden="true"></span><b>HOLDLINE</b></div>
+
+    <button class="nav" id="nav-batch" aria-current="page" type="button">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg> The batch
+    </button>
+    <button class="nav" id="nav-log" type="button">
+      <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 10h16M10 10v9"/></svg> Call log
+    </button>
+    <button class="nav" id="nav-safety" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3 7-7 9-4-2-7-4-7-9V6z"/></svg> Safety
+    </button>
+
+    <div class="side-foot">
+      <div class="mini" id="stats" hidden>
+        <div><span class="k">Seconds on the phone</span><span class="v" id="s-hold">0</span></div>
+        <div><span class="k">Facts stored</span><span class="v" id="s-facts">0</span></div>
+        <div><span class="k">Calls placed, last run</span><span class="v" id="s-avoided">0</span></div>
+        <div><span class="k">Routes known</span><span class="v" id="s-routes">0</span></div>
+      </div>
+      <div class="chip sim" id="mode-chip">
+        <div><div class="k">Mode</div><div class="val" id="mode">checking&hellip;</div></div>
+      </div>
+      <!-- A judge sent straight to /console had no route to the story, the
+           repository or the evidence: the page carried no links at all. -->
+      <nav class="out">
+        <a href="/">The story</a>
+        <a href="https://github.com/Elioz404/HOLDLINE">Source &amp; 164 tests</a>
+      </nav>
     </div>
-    <span class="badge" id="mode">checking…</span>
-  </header>
+  </aside>
 
-  <div class="stats" id="stats" hidden>
-    <div><span class="k">Seconds on the phone</span><span class="v" id="s-hold">0</span></div>
-    <div><span class="k">Facts stored</span><span class="v" id="s-facts">0</span></div>
-    <div><span class="k">Calls avoided by cache</span><span class="v" id="s-avoided">0</span></div>
-    <div><span class="k">Routes known</span><span class="v" id="s-routes">0</span></div>
-  </div>
+  <main class="main card">
+    <div class="head">
+      <h1 id="view-title">The batch</h1>
+      <span class="sub" id="view-sub">What will be asked, and of whom</span>
+    </div>
 
-  <div id="notice" class="notice" hidden></div>
+    <div id="notice" class="notice" hidden></div>
 
-  <div class="cols">
-    <section class="panel">
-      <h2>The batch</h2>
+    <section id="view-batch">
+      <div class="form">
+        <label for="goal">Question</label>
+        <textarea id="goal">Ask if you have a bed free this week for a hospital discharge, and what level of nursing care you can take.</textarea>
 
-      <label for="goal">Question</label>
-      <textarea id="goal">Ask if you have a bed free this week for a hospital discharge, and what level of nursing care you can take.</textarea>
+        <label for="hint">Menu routing hint</label>
+        <input type="text" id="hint" value="Reach the admissions desk.">
+        <div class="hint">Dropped first if the task exceeds 255 characters.</div>
 
-      <label for="hint">Menu routing hint</label>
-      <input type="text" id="hint" value="Reach the admissions desk.">
-      <div class="hint">Dropped first if the task exceeds 255 characters.</div>
+        <label for="batch">Batch id</label>
+        <input type="text" id="batch" value="discharge-ward6-88431">
+        <div class="hint">The authorizing record. Never a timestamp — it is what makes a re-run idempotent.</div>
 
-      <label for="batch">Batch id</label>
-      <input type="text" id="batch" value="discharge-ward6-88431">
-      <div class="hint">The authorizing record. Never a timestamp — it is what makes a re-run idempotent.</div>
-
-      <label for="targets">Care homes, one per line: id, phone, name</label>
-      <textarea id="targets" rows="4">home-oakfield, +15550199001, Oakfield Care Home
+        <label for="targets">Care homes, one per line: id, phone, name</label>
+        <textarea id="targets" rows="4">home-oakfield, +15550199001, Oakfield Care Home
 home-riverside, +15550199007, Riverside Nursing
 home-belmont, +15550199012, Belmont House
 home-typo, +1 555 019 9002, Row with a typo</textarea>
 
-      <label for="fields">Fields, one per line: name | ask phrases, comma separated</label>
-      <textarea id="fields" rows="3">bed_available | bed free, a bed available, any availability
-nursing_level | level of nursing care, level of care, nursing care</textarea>
+        <label for="fields">Fields, one per line: name | ask phrases, comma separated</label>
+        <textarea id="fields" rows="3">bed_available | availability this week, bed free, a bed available
+nursing_level | the level of nursing care, level of care, nursing care</textarea>
 
-      <div class="row">
-        <button id="plan">Plan</button>
-        <button id="run" class="primary" disabled>Place calls</button>
+        <div class="row">
+          <button class="btn" id="plan" type="button">Plan</button>
+          <button class="btn primary" id="run" type="button" disabled>Place calls</button>
+        </div>
+        <div class="confirm">
+          <input type="checkbox" id="confirm">
+          <label for="confirm">I understand this places calls. Real people answer them.</label>
+        </div>
       </div>
-      <div class="confirm">
-        <input type="checkbox" id="confirm">
-        <label for="confirm" style="margin:0; text-transform:none; letter-spacing:0; font-family:var(--sans); font-size:12.5px; color:var(--ink-2);">
-          I understand this places calls. Real people answer them.
-        </label>
-      </div>
-    </section>
 
-    <section>
       <div id="planout"></div>
-      <div id="results"><div class="empty">A ward is holding a bed for a patient who is ready to leave. Plan the batch to see what will be asked, then place the calls.</div></div>
     </section>
-  </div>
 
-  <footer>
-    Every number shown is masked. Fields the transcript does not support are withheld, whatever the model reported.
-  </footer>
+    <section id="view-log" hidden>
+      <div class="toolbar">
+        <div class="fieldwrap" style="flex:1 1 220px">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input type="text" id="filter" placeholder="Filter places…">
+        </div>
+        <div class="fieldwrap">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16v14H4z"/><path d="M8 3v4M16 3v4M4 11h16"/></svg>
+          <span class="num" id="batch-chip">discharge-ward6-88431</span>
+        </div>
+      </div>
+
+      <div id="results"><div class="empty">Nothing has been dialled yet. Plan the batch, then place the calls.</div></div>
+    </section>
+
+    <section id="view-safety" hidden>
+      <div class="ev">
+        <div class="name">confirmation</div>
+        <div class="val">Required, every time</div>
+        <div class="why">Nothing dials until the box is ticked in the same request. There is no setting that removes it.</div>
+      </div>
+      <div class="ev">
+        <div class="name">emergency and crisis prefixes</div>
+        <div class="val">Refused unconditionally</div>
+        <div class="why">Checked before dispatch, and no configuration permits them.</div>
+      </div>
+      <div class="ev">
+        <div class="name">masking</div>
+        <div class="val">Every number, every response</div>
+        <div class="why">Including echoed metadata and provider error bodies. A number written the way somebody says one out loud is masked too — a live call taught us that one.</div>
+      </div>
+      <div class="ev">
+        <div class="name">an unknown outcome</div>
+        <div class="val">Reconciled, never re-dialled</div>
+        <div class="why">A timeout does not mean no call happened. Retrying one rings a second real person.</div>
+      </div>
+      <div class="ev held">
+        <div class="name">this console, when it is public</div>
+        <div class="val null">cannot place calls at all</div>
+        <div class="why">A console bound off its own machine is locked into simulation, whatever else is set.</div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="detail card" id="detail">
+    <div class="detail-head">
+      <div>
+        <h2 id="detail-title">No call selected</h2>
+        <div class="sub" id="detail-sub">Pick a place from the call log to read what was said, and what it established.</div>
+      </div>
+      <button class="x" id="detail-close" type="button" hidden aria-label="Close details">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="detail-body"></div>
+  </aside>
+
 </div>
 
 <script>
@@ -205,11 +415,38 @@ nursing_level | level of nursing care, level of care, nursing care</textarea>
   var $ = function (id) { return document.getElementById(id); };
   var simulated = true;
 
+  var VIEWS = {
+    batch:  { title: "The batch",  sub: "What will be asked, and of whom" },
+    log:    { title: "Call log",   sub: "One row per place, one verdict each" },
+    safety: { title: "Safety",     sub: "What this refuses to do, and cannot be told to do" }
+  };
+
+  /** Everything the page knows about the run, keyed by target. */
+  var state = { view: "batch", order: [], byId: {}, selected: null, tab: "transcript",
+                tally: { places: 0, established: 0, withheld: 0 } };
+
   function esc(s) {
     return String(s === null || s === undefined ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
+  function mmss(sec) {
+    var s = Math.max(0, Math.round(sec || 0));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function setView(name) {
+    state.view = name;
+    ["batch", "log", "safety"].forEach(function (v) {
+      $("view-" + v).hidden = v !== name;
+      $("nav-" + v).setAttribute("aria-current", v === name ? "page" : "false");
+    });
+    $("view-title").textContent = VIEWS[name].title;
+    $("view-sub").textContent = VIEWS[name].sub;
+  }
+  $("nav-batch").addEventListener("click", function () { setView("batch"); });
+  $("nav-log").addEventListener("click", function () { setView("log"); });
+  $("nav-safety").addEventListener("click", function () { setView("safety"); });
 
   function parseTargets() {
     return $("targets").value.split("\n").map(function (line) {
@@ -233,25 +470,15 @@ nursing_level | level of nursing care, level of care, nursing care</textarea>
   }
 
   function body(extra) {
-    var b = {
-      goal: $("goal").value,
-      routingHint: $("hint").value,
-      batchId: $("batch").value,
-      workflow: "console",
-      intent: "ask",
-      targets: parseTargets(),
-      fields: parseFields()
-    };
+    var b = { goal: $("goal").value, routingHint: $("hint").value, batchId: $("batch").value,
+              workflow: "console", intent: "ask", targets: parseTargets(), fields: parseFields() };
     for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
     return b;
   }
 
   function post(path, payload) {
-    return fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(function (r) { return r.json(); });
+    return fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
+                         body: JSON.stringify(payload) }).then(function (r) { return r.json(); });
   }
 
   function showError(where, message) {
@@ -261,58 +488,68 @@ nursing_level | level of nursing care, level of care, nursing care</textarea>
   function refreshState() {
     return fetch("/api/state").then(function (r) { return r.json(); }).then(function (s) {
       simulated = s.mode !== "live";
-      var badge = $("mode");
-      badge.textContent = simulated ? "simulation" : "live — real calls";
-      badge.className = simulated ? "badge" : "badge live";
+      $("mode").textContent = simulated ? "simulation" : "live — real calls";
+      $("mode-chip").className = simulated ? "chip sim" : "chip live";
       $("s-hold").textContent = s.secondsAbsorbed || 0;
       $("s-facts").textContent = (s.ledger && s.ledger.facts) || 0;
-      $("s-avoided").textContent = (s.ledger && s.ledger.servedFresh) || 0;
+      // Left alone here: this one is fed by the run stream, not by /api/state.
       $("s-routes").textContent = s.routesKnown || 0;
-      // A row of zeros is the least useful thing the page could lead with.
       $("stats").hidden = !(s.routesKnown || (s.ledger && s.ledger.facts));
 
       var n = $("notice");
-      if (simulated) {
-        n.hidden = false;
-        n.innerHTML = "<strong>Simulation.</strong> No telephone is involved. Responses are produced by a local fake transport that reproduces CALL-E's documented behaviour, including a call that returns a confident answer to a question it never asked. Treat anything here as a rehearsal, never as a finding.";
-      } else {
-        n.hidden = false;
-        n.innerHTML = "<strong>Live.</strong> Placing calls will dial real numbers and be billed per call.";
-      }
+      n.hidden = false;
+      n.innerHTML = simulated
+        // Ending at "no telephone is involved" leaves a judge with a demo that,
+        // by its own label, proves nothing about placing calls. The engine is
+        // the same either way, so the notice now says where the telephone is.
+        ? "<strong>Simulation.</strong> No telephone is involved. Responses come from a local fake transport that reproduces CALL-E's documented behaviour, including a call that returns a confident answer to a question it never asked. Treat anything here as a rehearsal, never as a finding." +
+          "<br><br>The engine underneath is the same one that dials. To watch it place a real call on your own CALL-E account, clone the repository and run:" +
+          "<div class=\"cmd\">npm run call -- --ask \"...\" --to '+1...' --field name=\"asks\" --live</div>" +
+          "Without <code>--live</code> it plans and dials nobody, and needs no API key."
+        : "<strong>Live.</strong> Placing calls will dial real numbers and be billed per call.";
     });
   }
 
+  /* ── planning ─────────────────────────────────────────────────────── */
   function renderPlan(p) {
-    if (p.error) { showError("planout", typeof p.error === "string" ? p.error : (p.error.message || "Plan failed.")); $("run").disabled = true; return; }
-    var pctRaw = (p.used / p.budget) * 100;
-    var pct = Math.max(0, Math.min(100, pctRaw));
+    if (p.error) {
+      showError("planout", typeof p.error === "string" ? p.error : (p.error.message || "Plan failed."));
+      $("run").disabled = true; return;
+    }
+    var pct = Math.max(0, Math.min(100, (p.used / p.budget) * 100));
     var rows = (p.dialable || []).map(function (t) {
-      return '<div class="field"><div class="name">' + esc(t.subjectId) +
-        ' <span class="num">' + esc(t.phone) + "</span></div>" +
-        (t.label ? '<div class="why">' + esc(t.label) + "</div>" : "") +
-        (t.routeHint ? '<div class="quote">' + esc(t.routeHint) + "</div>" : "") + "</div>";
+      return '<tr><td><span class="place">' + esc(t.label || t.subjectId) + "</span>" +
+        (t.routeHint ? '<div class="why">' + esc(t.routeHint) + "</div>" : "") + "</td>" +
+        '<td class="num">' + esc(t.phone) + "</td>" +
+        '<td><span class="pill wait"><i></i>will dial</span></td></tr>';
     }).join("");
-
+    var dialCount = (p.dialable || []).length;
+    var rejectCount = (p.rejected || []).length;
     var rejected = (p.rejected || []).map(function (r) {
-      return '<div class="field"><div class="name">' + esc(r.subjectId) +
-        ' <span class="num">' + esc(r.maskedPhone) + '</span></div>' +
-        '<div class="why">refused: ' + esc(r.reason) + "</div></div>";
+      return '<tr><td><span class="place">' + esc(r.subjectId) + "</span></td>" +
+        '<td class="num">' + esc(r.maskedPhone) + "</td>" +
+        '<td><span class="pill held"><i></i>' + esc(words(r.reason)) + "</span></td></tr>";
     }).join("");
 
     $("planout").innerHTML =
-      '<div class="panel" style="margin-bottom:16px">' +
-        "<h2>Compiled task</h2>" +
-        '<div class="taskbox">' + esc(p.task) + "</div>" +
-        '<div class="meter"><i style="width:' + pct + '%"></i></div>' +
-        '<div class="hint">' + p.used + " of " + p.budget + " characters" +
-          (p.dropped && p.dropped.length ? " — dropped: " + esc(p.dropped.join(", ")) : "") + "</div>" +
-        '<label style="margin-top:16px">Idempotency key</label>' +
-        '<div class="taskbox">' + esc(p.idempotencyKey) + "</div>" +
-        '<div class="hint">Derived from the batch id, not from the moment. Re-running fetches the same call.</div>' +
-        '<label style="margin-top:16px">Will be called</label>' + (rows || '<div class="why">nothing dialable</div>') +
-        (rejected ? '<label style="margin-top:16px">Refused before dialing</label>' + rejected : "") +
-      "</div>";
+      '<label style="margin-top:22px">Compiled task</label>' +
+      '<div class="taskbox">' + esc(p.task) + "</div>" +
+      '<div class="meter"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="hint">' + p.used + " of " + p.budget + " characters" +
+        (p.dropped && p.dropped.length ? " — dropped: " + esc(p.dropped.join(", ")) : "") + "</div>" +
+      '<label style="margin-top:18px">Idempotency key</label>' +
+      '<div class="taskbox">' + esc(p.idempotencyKey) + "</div>" +
+      '<div class="hint">Derived from the batch id, not from the moment. Re-running fetches the same call.</div>' +
+      // One table holds both the numbers that will be dialled and the ones
+      // refused, so "Refused before dialing" was a heading over rows that say
+      // "will dial". Name the section for the whole plan and let the counts
+      // underneath carry the refusal, which is the part worth seeing.
+      '<label style="margin-top:18px">The plan, place by place</label>' +
+      '<table class="tbl"><tbody>' + rows + rejected + "</tbody></table>" +
+      '<div class="hint">' + dialCount + " will be dialled" +
+        (rejectCount ? " &middot; " + rejectCount + " refused before dialling" : "") + "</div>";
 
+    $("batch-chip").textContent = $("batch").value;
     $("run").disabled = !(p.dialable && p.dialable.length) || !$("confirm").checked;
   }
 
@@ -326,118 +563,289 @@ nursing_level | level of nursing care, level of care, nursing care</textarea>
     post("/api/plan", body({})).then(renderPlan).catch(function (e) { showError("planout", String(e)); });
   });
 
-  function mmss(sec) {
-    var s = Math.max(0, Math.round(sec));
-    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-  }
-
+  /* ── the log ──────────────────────────────────────────────────────── */
   function startBoard(plan) {
-    var rows = (plan.dialable || []).map(function (t) {
-      return '<div class="liverow" id="row-' + esc(t.subjectId) + '">' +
-        '<div><div class="who">' + esc(t.label || t.subjectId) + ' <span class="num">' + esc(t.phone) + "</span></div>" +
-        '<div class="detail" data-detail>waiting to dial</div></div>' +
-        '<span class="clock" data-clock>0:00</span>' +
-        '<span class="phase" data-phase>queued</span>' +
-      "</div>";
-    }).join("");
-
+    state.order = []; state.byId = {}; state.selected = null;
+    state.tally = { places: 0, established: 0, withheld: 0 };
+    (plan.dialable || []).forEach(function (t) {
+      state.order.push(t.subjectId);
+      state.byId[t.subjectId] = { subjectId: t.subjectId, label: t.label || t.subjectId,
+        phone: t.phone, phase: "queued", at: 0, detail: "waiting to dial", spans: [], done: false };
+    });
     $("results").innerHTML =
-      '<div class="board" id="board"><h2>On the line</h2>' +
-      '<div class="speed">Call clock, replayed from the transcript at ' + esc(plan.playbackSpeed) + '× real time</div>' +
-      rows + "</div><div id=\"outcome\"><div id=\"summary\"></div><div id=\"cards\"></div></div>";
+      '<div id="board"><table class="tbl">' +
+      '<thead><tr><th>Place</th><th>On call</th><th>State</th><th>Answers</th></tr></thead>' +
+      '<tbody id="rows"></tbody></table></div>' +
+      '<div class="tfoot"><span class="count" id="count"></span>' +
+      '<button class="again" id="again" type="button" hidden>Run it again</button>' +
+      '<span class="spacer"></span><span class="num">' + esc(plan.playbackSpeed) +
+      '&times; real time, replayed from the transcript</span></div>';
+    renderRows();
+    setView("log");
   }
 
+  // snake_case is what the engine emits; it is not what a person reads. The
+  // underscores sat next to a hand-written "verified" and made one column
+  // look like two different systems.
+  //
+  // PhoneRejection is a closed set of six (src/core/phone.ts). Spelled out
+  // literally, two of them are wider than the column they sit in, and the
+  // pill clipped them mid-word rather than saying so. These say the same
+  // thing in fewer characters, so every one of them fits at natural width.
+  var LABELS = {
+    empty: "no number",
+    contains_whitespace: "has spaces",
+    contains_extension: "has extension",
+    not_e164: "not E.164",
+    placeholder: "placeholder",
+    blocked_prefix: "blocked prefix"
+  };
+
+  function words(token) {
+    var key = String(token || "");
+    return LABELS[key] || key.replace(/_/g, " ");
+  }
+
+  function pillFor(t) {
+    if (!t.done) return '<span class="pill wait"><i></i>' + esc(words(t.phase)) + "</span>";
+    return t.verdict === "verified"
+      ? '<span class="pill ok"><i></i>verified</span>'
+      : '<span class="pill held"><i></i>' + esc(words(t.verdict)) + "</span>";
+  }
+
+  function answersFor(t) {
+    if (!t.done) return '<span class="num">—</span>';
+    var ok = 0, held = 0;
+    (t.fields || []).forEach(function (f) {
+      var v = t.result ? t.result[f.field] : null;
+      if (v === null || v === undefined) held += 1; else ok += 1;
+    });
+    return '<span class="kept">' + ok + " kept" +
+           (held ? '<span class="sep">/</span><span class="held">' + held + " withheld</span>" : "") +
+           "</span>";
+  }
+
+  function renderRows() {
+    var filter = $("filter");
+    var q = (filter && filter.value || "").toLowerCase();
+    var shown = 0;
+    var html = state.order.map(function (id) {
+      var t = state.byId[id];
+      if (q && t.label.toLowerCase().indexOf(q) === -1) return "";
+      shown += 1;
+      return '<tr class="liverow' + (t.done ? " done" : "") + '" id="row-' + esc(id) + '" data-id="' + esc(id) + '"' +
+        ' tabindex="0" role="button" aria-label="Open the transcript for ' + esc(t.label) + '"' +
+        (state.selected === id ? ' aria-selected="true"' : "") + ">" +
+        '<td><span class="place">' + esc(t.label) + "</span>" +
+          '<div class="num">' + esc(t.phone) + "</div>" +
+          '<div class="why" data-detail>' + esc(t.detail || "") + "</div></td>" +
+        '<td class="nums" data-clock>' + mmss(t.at) + "</td>" +
+        '<td data-phase-cell>' + pillFor(t) + "</td>" +
+        "<td>" + answersFor(t) + "</td></tr>";
+    }).join("");
+    var tbody = $("rows");
+    if (!tbody) return;
+    tbody.innerHTML = html;
+    var c = $("count");
+    if (c) {
+      c.textContent = shown + " of " + state.order.length +
+        (state.order.length === 1 ? " place" : " places") +
+        " · " + state.tally.established + " established · " + state.tally.withheld + " withheld";
+    }
+  }
+
+  document.addEventListener("click", function (e) {
+    var tr = e.target && e.target.closest ? e.target.closest("tr.liverow") : null;
+    if (!tr) return;
+    select(tr.getAttribute("data-id"), true);
+  });
+  // A clickable row that the keyboard cannot reach is a control only some
+  // people have. Enter and Space open it, the same as the pointer.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
+    var tr = e.target && e.target.closest ? e.target.closest("tr.liverow") : null;
+    if (!tr) return;
+    e.preventDefault();
+    select(tr.getAttribute("data-id"), true);
+  });
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.id === "filter") renderRows();
+  });
+
+  /* ── detail ───────────────────────────────────────────────────────── */
+  // `reveal` is true only when a person asked for this row. The stream also
+  // selects the first target that settles, and scrolling on that would yank
+  // the page off the call log mid-run.
+  function select(id, reveal) {
+    state.selected = id;
+    renderRows();
+    renderDetail();
+    // Below the three-column breakpoint the transcript sits in a row of its
+    // own, under the fold. Without this the click marks the row and nothing
+    // else visibly happens, which reads as a table that does not respond.
+    if (reveal && window.matchMedia && window.matchMedia("(max-width:1240px)").matches) {
+      var detail = document.querySelector(".detail");
+      if (detail && detail.scrollIntoView) {
+        detail.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  }
+  $("detail-close").addEventListener("click", function () {
+    state.selected = null; renderRows(); renderDetail();
+  });
+
+  function timeline(t) {
+    var spans = t.spans || [];
+    var total = spans.length ? spans[spans.length - 1].at : t.at;
+    if (!total) return "";
+    var bars = spans.map(function (s, i) {
+      var next = spans[i + 1] ? spans[i + 1].at : total;
+      var w = Math.max(0, ((next - s.at) / total) * 100);
+      return '<span class="' + esc(s.phase) + '" style="width:' + w + '%"></span>';
+    }).join("");
+    return '<div class="timeline">' +
+      '<div class="track">' + bars + "</div>" +
+      '<div class="ticks"><span>0:00</span><span>' + mmss(total) + "</span></div>" +
+      '<div class="legend">' +
+        '<span><b style="background:var(--line-2)"></b>menu</span>' +
+        '<span><b style="background:var(--hold)"></b>holding</span>' +
+        '<span><b style="background:var(--live)"></b>answered</span>' +
+      "</div></div>";
+  }
+
+  function renderTranscript(t) {
+    if (!t.transcript || !t.transcript.length) {
+      return '<div class="empty">No transcript came back for this call. Nothing can be checked against it, so nothing is credited.</div>';
+    }
+    // Three speakers, not two. `bot` is the agent; `user` is whoever picked up;
+    // `unknown` is a recording. Collapsing the last two would hide the thing a
+    // live call taught us — CALL-E labels an automated system as a person.
+    var WHO = {
+      bot:     { name: "Agent",     icon: '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 13h.01M15 13h.01"/>' },
+      user:    { name: "Answered",  icon: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/>' },
+      unknown: { name: "Recording", icon: '<circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/>' }
+    };
+    return t.transcript.map(function (turn) {
+      var who = WHO[turn.speaker] || WHO.unknown;
+      var isBot = turn.speaker === "bot";
+      return '<div class="turn ' + (isBot ? "bot" : "them") + '">' +
+        '<span class="avatar"><svg viewBox="0 0 24 24">' + who.icon + "</svg></span><div>" +
+        '<div class="meta"><b>' + who.name + "</b>" + mmss(turn.at) + "</div>" +
+        '<div class="said">' + esc(turn.text) + "</div></div></div>";
+    }).join("");
+  }
+
+  function renderEvidence(t) {
+    var fields = (t.fields || []).map(function (f) {
+      var v = t.result ? t.result[f.field] : null;
+      var isNull = v === null || v === undefined;
+      return '<div class="ev ' + (isNull ? "held" : "ok") + '">' +
+        '<div class="name">' + esc(f.field) + "</div>" +
+        '<div class="val' + (isNull ? " null" : "") + '">' + (isNull ? "withheld" : esc(v)) + "</div>" +
+        (f.supportingTurn ? '<div class="quote">&ldquo;' + esc(f.supportingTurn) + '&rdquo;</div>' : "") +
+        '<div class="why">' + esc(f.verdict) + " &mdash; " + esc(f.note) + "</div></div>";
+    }).join("");
+    var reasons = (t.reasons || []).length
+      ? '<div class="ev held"><div class="name">why it was withheld</div>' +
+        t.reasons.map(function (x) { return '<div class="why">' + esc(x) + "</div>"; }).join("") + "</div>"
+      : "";
+    return fields + reasons || '<div class="empty">Nothing has come back for this place yet.</div>';
+  }
+
+  function renderDetail() {
+    var t = state.selected ? state.byId[state.selected] : null;
+    $("detail-close").hidden = !t;
+    if (!t) {
+      $("detail-title").textContent = "No call selected";
+      $("detail-sub").textContent = "Pick a place from the call log to read what was said, and what it established.";
+      $("detail-body").innerHTML = "";
+      return;
+    }
+    $("detail-title").textContent = t.label;
+    $("detail-sub").textContent = t.phone + " · " + (t.done ? t.verdict : t.phase);
+    $("detail-body").innerHTML =
+      timeline(t) +
+      '<div class="tabs" role="tablist">' +
+        '<button class="tab" id="tab-transcript" role="tab" type="button" aria-selected="' +
+          (state.tab === "transcript") + '">Transcript</button>' +
+        '<button class="tab" id="tab-evidence" role="tab" type="button" aria-selected="' +
+          (state.tab === "evidence") + '">What it established</button>' +
+      "</div>" +
+      '<div id="tabbody">' + (state.tab === "transcript" ? renderTranscript(t) : renderEvidence(t)) + "</div>";
+
+    $("tab-transcript").addEventListener("click", function () { state.tab = "transcript"; renderDetail(); });
+    $("tab-evidence").addEventListener("click", function () { state.tab = "evidence"; renderDetail(); });
+  }
+
+  /* ── the stream ───────────────────────────────────────────────────── */
   function updateRow(ev) {
-    var row = document.getElementById("row-" + ev.subjectId);
-    if (!row) return;
-    row.querySelector("[data-clock]").textContent = mmss(ev.at);
-    var phase = row.querySelector("[data-phase]");
-    phase.textContent = ev.phase;
-    phase.className = "phase " + ev.phase;
-    row.querySelector("[data-detail]").textContent = ev.detail || "";
+    var t = state.byId[ev.subjectId];
+    if (!t) return;
+    t.at = ev.at; t.phase = ev.phase; t.detail = ev.detail || "";
+    if (!t.spans.length || t.spans[t.spans.length - 1].phase !== ev.phase) {
+      t.spans.push({ phase: ev.phase, at: ev.at });
+    }
+    var row = $("row-" + ev.subjectId);
+    if (row) {
+      row.querySelector("[data-clock]").textContent = mmss(t.at);
+      row.querySelector("[data-phase-cell]").innerHTML = pillFor(t);
+      row.querySelector("[data-detail]").textContent = t.detail;
+    }
+    if (state.selected === ev.subjectId) renderDetail();
   }
 
   function appendVerdict(v) {
-    var held = v.verdict !== "verified";
-    tally.places += 1;
+    var t = state.byId[v.subjectId];
+    if (!t) { t = { subjectId: v.subjectId, spans: [], at: 0 }; state.byId[v.subjectId] = t; }
+    t.label = v.label || v.subjectId; t.phone = v.phone; t.verdict = v.verdict;
+    t.result = v.result; t.fields = v.fields; t.reasons = v.reasons;
+    t.transcript = v.transcript; t.done = true;
+    if (state.order.indexOf(v.subjectId) === -1) state.order.push(v.subjectId);
+
+    state.tally.places += 1;
     (v.fields || []).forEach(function (f) {
       var value = v.result ? v.result[f.field] : null;
-      if (value === null || value === undefined) tally.withheld += 1;
-      else tally.established += 1;
+      if (value === null || value === undefined) state.tally.withheld += 1;
+      else state.tally.established += 1;
     });
-    renderSummary();
-    var fields = (v.fields || []).map(function (f) {
-      var value = v.result ? v.result[f.field] : null;
-      var isNull = value === null || value === undefined;
-      return '<div class="field">' +
-        '<div class="name">' + esc(f.field) + "</div>" +
-        '<div class="val' + (isNull ? " null" : "") + '">' + (isNull ? "withheld" : esc(value)) + "</div>" +
-        (f.supportingTurn ? '<div class="quote">“' + esc(f.supportingTurn) + '”</div>' : "") +
-        '<div class="why">' + esc(f.verdict) + " — " + esc(f.note) + "</div>" +
-      "</div>";
-    }).join("");
-
-    var card = '<div class="card ' + (held ? "held" : "ok") + '">' +
-      "<header>" +
-        '<span class="who">' + esc(v.label || v.subjectId) + "</span>" +
-        '<span class="num">' + esc(v.phone) + "</span>" +
-        '<span class="verdict ' + (held ? "held" : "ok") + '">' + esc(v.verdict) + "</span>" +
-      "</header>" + fields +
-      (v.reasons && v.reasons.length
-        ? '<div class="field"><div class="tag">why it was withheld</div>' +
-          v.reasons.map(function (x) { return '<div class="why">' + esc(x) + "</div>"; }).join("") + "</div>"
-        : "") +
-    "</div>";
-    document.getElementById("cards").insertAdjacentHTML("beforeend", card);
-  }
-
-  // Running tally, so the outcome reads in one glance instead of needing every
-  // card read end to end.
-  var tally = { places: 0, established: 0, withheld: 0 };
-
-  function renderSummary() {
-    var unit = function (cls, big, label) {
-      return '<div class="unit ' + cls + '"><span class="big">' + big + '</span>' +
-             '<span class="lbl">' + label + "</span></div>";
-    };
-    document.getElementById("summary").innerHTML =
-      '<div class="summary">' +
-        unit("", tally.places, tally.places === 1 ? "place called" : "places called") +
-        '<span class="sep"></span>' +
-        unit("ok", tally.established, "answers established") +
-        '<span class="sep"></span>' +
-        unit("held", tally.withheld, tally.withheld === 1 ? "answer withheld" : "answers withheld") +
-      "</div>";
+    renderRows();
+    // The first place to come back opens itself, so the detail panel is never
+    // an empty column waiting to be clicked.
+    if (!state.selected) select(v.subjectId);
+    else if (state.selected === v.subjectId) renderDetail();
   }
 
   function handleEvent(ev) {
-    if (ev.type === "plan") { tally = { places: 0, established: 0, withheld: 0 }; startBoard(ev); }
+    if (ev.type === "plan") startBoard(ev);
     else if (ev.type === "phase") updateRow(ev);
     else if (ev.type === "verdict") appendVerdict(ev);
     else if (ev.type === "unresolved") {
-      document.getElementById("cards").insertAdjacentHTML("beforeend",
+      $("results").insertAdjacentHTML("afterbegin",
         '<div class="err"><strong>Unresolved outcome.</strong> ' +
         esc((ev.classification && ev.classification.reason) || "") + "<br><br>" + esc(ev.note || "") + "</div>");
     } else if (ev.type === "error") {
       showError("results", (ev.error && ev.error.message) || "Run failed.");
     } else if (ev.type === "done") {
+      // A replayed run placed no calls at all: the idempotency key found the
+      // earlier dispatch and returned its result. That is the claim the batch
+      // id makes, and this is the only place a judge can watch it hold.
+      lastRunReplayed = ev.replayed === true;
+      $("s-avoided").textContent = lastRunReplayed ? "0" : String(state.tally.places);
       refreshState();
     }
   }
 
   async function runStreaming() {
     var res = await fetch("/api/run-stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body({ confirm: true }))
     });
-
     if (!res.ok || !res.body) {
       var problem = await res.json().catch(function () { return {}; });
+      setView("log");
       showError("results", problem.error || problem.refused || "Run failed.");
       return;
     }
-
     var reader = res.body.getReader();
     var decoder = new TextDecoder();
     var buffer = "";
@@ -454,13 +862,35 @@ nursing_level | level of nursing care, level of care, nursing care</textarea>
     }
   }
 
+  function startRun() {
+    setView("log");
+    $("results").innerHTML = '<div class="empty">Dialling&hellip;</div>';
+    $("run").disabled = true;
+    return runStreaming()
+      .catch(function (e) { showError("results", String(e)); })
+      .then(function () {
+        $("run").disabled = !$("confirm").checked;
+        // The second run is where the idempotency shows: same batch id, same
+        // authorizing record, so nothing dials and "Calls avoided" moves.
+        var again = $("again");
+        if (again) {
+          again.hidden = false;
+          again.textContent = ranOnce ? "Run it again" : "Run it again — nothing re-dials";
+          ranOnce = true;
+        }
+      });
+  }
+
+  var ranOnce = false;
+  var lastRunReplayed = false;
+
   $("run").addEventListener("click", function () {
     if (!$("confirm").checked) return;
-    $("results").innerHTML = '<div class="empty">Dialing…</div>';
-    $("run").disabled = true;
-    runStreaming()
-      .catch(function (e) { showError("results", String(e)); })
-      .then(function () { $("run").disabled = !$("confirm").checked; });
+    startRun();
+  });
+
+  document.addEventListener("click", function (e) {
+    if (e.target && e.target.id === "again") startRun();
   });
 
   refreshState();

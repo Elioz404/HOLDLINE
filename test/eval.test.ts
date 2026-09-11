@@ -95,6 +95,29 @@ describe("evaluation corpus", () => {
 });
 
 describe("evaluation harness", () => {
+  it("does not eat a question that arrived without its mark", () => {
+    // A live call produced one: the agent opened a clause with an inversion
+    // and the turn was truncated before the mark. Measured before the signal
+    // was added, the gate withheld 44 of 44 of these — every one a real answer
+    // thrown away.
+    const report = runEvaluation(400, 20260906);
+    expect(report.invertedNoMark.total).toBeGreaterThan(0);
+    expect(report.invertedNoMark.withheld).toBe(0);
+  });
+
+  it("still refuses a statement of purpose, which that signal could have reopened", () => {
+    // The class this one sits against. Anchoring the inversion to a clause
+    // boundary is the whole reason both can hold at once: if this number
+    // moves, the result above was bought by undoing an earlier fix.
+    const report = runEvaluation(400, 20260906);
+    expect(report.mentionOnly.caught).toBe(report.mentionOnly.total);
+  });
+
+  it("still credits nothing the call never established", () => {
+    const report = runEvaluation(400, 20260906);
+    expect(report.reported.gated.unestablished).toBe(0);
+  });
+
   const report = runEvaluation(400);
 
   it("catches every invented value in the corpus", () => {

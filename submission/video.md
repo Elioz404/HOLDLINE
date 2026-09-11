@@ -35,43 +35,43 @@ no subtitle filter in the chain and the type is under our control.
 The terminal segments are not mock-ups: they were captured from real runs
 immediately before recording and printed verbatim on screen.
 
-**The published video still contains the real-call segment at 1:29. This
-repository no longer renders it.** The capture it read, and the rendered video
-itself, were removed from the tree and from the public history at the
-maintainer's request during review of the pull request — a real call leaves no
-artifact here, and that now includes output derived from one. `npm run video`
-produces the same film without that segment. What those calls established is
-described in the README instead, in our own words.
+**The real-call segment is gone and does not come back.** The capture it read,
+and the rendered video itself, were removed from the tree and from the public
+history at the maintainer's request during review of the pull request — a real
+call leaves no artifact here, and that now includes output derived from one.
+`npm run video` renders five segments, none of which reads a call. What the
+live calls established is described in the README instead, in our own words.
+Any video published from this repository must be recorded from the current
+pipeline, not re-uploaded from an older cut.
 
 ## What is on screen, in order
 
-Timings are read from `docs/video/timing.json`, which the recorder wrote.
+Five segments. Timings are read from `docs/video/timing.json`, which the
+recorder writes — fill them in after recording rather than from this table.
 
 | | |
 | --- | --- |
-| 0:00 | The problem, over the console at rest. |
-| 0:21 | **Plan** — the task compiled into 255 characters, the malformed fourth number refused before dialing, one idempotency key derived per place. |
-| 0:48 | **On the line** — three homes at once, the call's own clock climbing past a minute. Header reads `SIMULATION` throughout. |
-| 1:05 | **The verdicts** — one home verified with the sentence that established it, one withheld with the reason. |
-| 1:29 | **Three real calls** — the batch this project actually placed, judged. CALL-E answered all three confidently; two were established by the call and one was not, so it is withheld. |
-| 2:11 | **The numbers** — `npm run eval`, both the catch rate and its cost. |
+| The problem | Over the console at rest. |
+| **Plan** | The task compiled into 255 characters — including the clause that tells the agent to ask out loud — the malformed fourth number refused before dialing, one idempotency key derived per place. |
+| **On the line** | Three homes at once, the call's own clock climbing past a minute. Header reads `SIMULATION` throughout. |
+| **The verdicts** | One home verified with the sentence that established it, one withheld with the reason. |
+| **The numbers** | `npm run eval`, both the catch rate and its cost. |
 
 ## Honesty, which is on screen and not in small print
 
 The console segment runs against the local simulator. It says `SIMULATION` in
 the header throughout, and the narration says so out loud.
 
-The three calls judged after it are **real** — placed through CALL-E to
-published automated lines — and a caption says that out loud too, because the
-whole point of the segment is the contrast with what came before it.
+**Every segment is simulated, and no live call appears in the video at all.**
+There is no longer a segment that reads one: the pipeline renders five, each
+driven by the local fake transport. What twenty-eight live calls established,
+and the six defects they found, is described in the README in our own words.
 
-**No transcript from those calls appears anywhere in the video.** The capture is
-taken with `npm run replay --no-quotes`, which prints each verdict and replaces
-the sentence that established it with *"(established by a turn this repository
-does not keep)"*. That is not a stylistic choice: this video is committed to the
-repository, and the pull request promises that no transcript, recording or call
-id from a live call is kept there. A flag that makes the promise easy to keep is
-worth more than a promise that relies on remembering.
+`npm run replay --no-quotes` remains for judging a saved file without printing
+the sentence behind each verdict. It is no longer what keeps a transcript out
+of this video — nothing in the pipeline reads one — but it is the flag to reach
+for if a segment over a saved file is ever added back. A flag that makes the
+promise easy to keep is worth more than a promise that relies on remembering.
 
 Every number in every frame is masked, including the malformed one refused
 before dialing, which prints as `[redacted-phone]` because `maskPhone` will not
@@ -108,8 +108,9 @@ local output, reproducible from one command.
 - **Public**, not unlisted — the rules say *"made publicly visible"*.
 - Upload `docs/video/holdline.srt` as the English caption track. The burned-in
   captions stay regardless, so it reads with the sound off either way.
-- Thumbnail: the frame at 1:29, the three real calls. It is the only frame that
-  tells the story on its own.
+- Thumbnail: the verdicts frame — one place established with the sentence that
+  established it, one withheld with the reason beside it. It is the only frame
+  that tells the story on its own.
 - Category: Science & Technology. Language: English.
 - Tags: `CALL-E`, `voice agents`, `AI phone agent`, `hallucination`, `evidence`,
   `MCP`, `TypeScript`, `healthcare`, `hackathon`.
@@ -123,37 +124,43 @@ HOLDLINE — only the answers the call actually established
 ### Description
 
 The second line is the simulation notice on purpose: YouTube truncates there,
-so a judge who never expands the description still knows which part is
-simulated. The organisations called are not named — the rules bar third-party
-trademarks from the video, and the failure on screen is the platform's
-`task_completed: true`, not theirs.
+so a judge who never expands the description still knows what they are watching.
+
+Every segment is simulated. The pipeline has no segment that reads a real call
+and `docs/video/` is generated output that is not committed, so nothing from a
+live call reaches the video or this repository. No organisation is named: the
+rules bar third-party trademarks, and the places on screen are fictional.
+
+**Chapter timings are not written by hand.** The ones below were read from
+`docs/video/timing.json`, which `npm run video` writes from the same offsets it
+cut the picture to. Re-record and they must be read again — the film runs
+1:53.
 
 ```
 A phone agent can return a confident, schema-valid answer to a question it never asked. HOLDLINE checks every field against what the agent actually said, and withholds the rest.
 
-The console segment runs against a local simulator and says SIMULATION on screen throughout. The three calls from 1:29 are real, placed through CALL-E.
+Every segment runs against a local simulator and says SIMULATION on screen throughout. No real call appears in this video.
 
 CHAPTERS
 0:00  The problem
 0:21  The plan — 255 characters, a malformed number refused before dialing
-0:48  On the line — three places at once (simulated)
-1:05  The verdicts — one established, one withheld
-1:29  Three real calls
-2:11  The measured numbers
+0:48  On the line — three places at once
+1:11  The verdicts — one established, one withheld
+1:30  The measured numbers
 
 THE PROBLEM
 A patient is medically ready to leave hospital and cannot, because nobody has confirmed a bed. A discharge coordinator works a phone list — roughly four hours a week. The expensive failure is not the hours. It is a "yes, we have a bed" the call never actually established.
 
-WHAT THE REAL CALLS SHOW
-Three published automated lines, called together. CALL-E returned the same confident answer for all three — 0.86, 0.88, 0.82. Two were established by the conversation. On the third, the agent never asked the question, and the platform answered anyway. That one is withheld, with the reason.
+WHAT THE VERDICTS SHOW
+Three places, one question each, one verdict each. Two come back established, with the sentence that established them. On the third the agent never asked, and the platform returned a confident answer anyway. That one is withheld, with the reason on screen.
 
-NO TRANSCRIPT APPEARS IN THIS VIDEO
-The capture is taken with a flag that prints each verdict and omits the sentence behind it. Real calls leave no transcript in the repository, and this video is committed to it.
+WHY NOTHING HERE IS A REAL CALL
+Twenty-eight live calls were placed while building this, and six of them found defects the test suite could not. None of them appears here. No transcript, recording or call identifier from a real call is kept in the repository or shown in this video.
 
 MEASURED, INCLUDING THE COST
-400 labelled cases. Everything the gate catches, and the 50 real answers it withholds to catch them, print on the same screen every run. A benchmark containing only the cases a system handles is marketing.
+400 labelled cases. Everything the gate catches, and the 44 real answers it withholds to catch them, print on the same screen every run. A benchmark containing only the cases a system handles is marketing.
 
-Engine, Evidence Gate, MCP server, 157 tests that place no calls and read no credentials:
+Engine, Evidence Gate, MCP server, 164 tests that place no calls and read no credentials:
 https://github.com/Elioz404/HOLDLINE
 
 Pull request:

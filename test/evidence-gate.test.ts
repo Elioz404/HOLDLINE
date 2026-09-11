@@ -24,6 +24,42 @@ const probes: FieldProbe[] = [
 const confident = { score: 0.92, label: "high" };
 
 describe("Evidence Gate", () => {
+  it("says once that the agent asked nothing, rather than blaming each field", () => {
+    // Both live calls placed against real phone trees came back this shape: the
+    // agent navigated a menu and answered the other party's questions without
+    // ever putting one of its own. Reported field by field it reads as a
+    // judgement on the place called; the call is what failed.
+    const report = runEvidenceGate({
+      structuredResult: { can_hear_clearly: "yes", address_correct: "yes" },
+      transcriptTurns: [
+        turn("bot", "Hi.", 0),
+        turn("user", "Press 1 for sales. Press 2 for support.", 12),
+        turn("bot", "Okay.", 14),
+      ],
+      probes,
+      completionConfidence: confident,
+    });
+
+    expect(report.reasons).toContain(
+      "The agent asked no questions on this call, so nothing could be established.",
+    );
+    expect(report.fields.every((field) => field.verdict === "never_asked")).toBe(true);
+  });
+
+  it("does not claim silence when the agent did ask", () => {
+    const report = runEvidenceGate({
+      structuredResult: { can_hear_clearly: "yes" },
+      transcriptTurns: [
+        turn("bot", "Can you hear me clearly?", 3),
+        turn("user", "Yes, loud and clear.", 5),
+      ],
+      probes: [probes[0]!],
+      completionConfidence: confident,
+    });
+
+    expect(report.reasons.join(" ")).not.toContain("asked no questions");
+  });
+
   it("verifies a field the bot actually asked about", () => {
     const report = runEvidenceGate({
       structuredResult: { can_hear_clearly: "yes", address_correct: "yes" },

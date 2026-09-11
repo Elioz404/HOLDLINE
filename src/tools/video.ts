@@ -78,8 +78,8 @@ async function main(): Promise<void> {
     if (!page) throw new Error("Chrome opened with no page.");
 
     await page.setViewport({ ...FRAME });
-    await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
-    await page.goto(`http://127.0.0.1:${port}`, { waitUntil: "networkidle0" });
+    await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
+    await page.goto(`http://127.0.0.1:${port}/console`, { waitUntil: "networkidle0" });
     await until(page, "the console to settle", () => document.getElementById("mode")!.textContent !== "checking…");
     await installCaption(page);
 
@@ -140,10 +140,10 @@ async function main(): Promise<void> {
     });
     await sleep(500);
     await page.evaluate(() => document.getElementById("run")!.click());
-    await until(page, "the board to appear", () => document.querySelectorAll(".liverow").length > 0);
+    await until(page, "the log to appear", () => document.querySelectorAll("#rows tr").length > 0);
     await page.evaluate(() => document.getElementById("board")?.scrollIntoView({ block: "center" }));
     await until(page, "every row past a minute on the clock", () => {
-      const rows = Array.from(document.querySelectorAll(".liverow"));
+      const rows = Array.from(document.querySelectorAll("#rows tr"));
       if (rows.length === 0) return false;
       return rows.every((row) => {
         const clock = row.querySelector("[data-clock]")?.textContent ?? "0:00";
@@ -155,13 +155,22 @@ async function main(): Promise<void> {
     await say(7, true);
 
     // ── the verdicts ──────────────────────────────────────────────────────
-    await until(page, "the verdicts", () => document.querySelectorAll("#cards .card").length >= 3, 90_000);
-    await page.evaluate(() => document.getElementById("summary")?.scrollIntoView({ block: "start" }));
+    await until(page, "the verdicts",
+      () => document.querySelectorAll("#rows .pill.ok, #rows .pill.held").length >= 3, 90_000);
     await sleep(700);
     await say(8);
-    await say(9);
-    await page.evaluate(() => document.querySelectorAll("#cards .card")[1]?.scrollIntoView({ block: "center", behavior: "smooth" }));
+    // Open the place that was withheld, on the tab that says why. The detail
+    // panel is where the argument lives now; the table only counts.
+    await page.evaluate(() => {
+      const held = document.querySelector("#rows tr:has(.pill.held)") as HTMLElement | null;
+      (held ?? (document.querySelectorAll("#rows tr")[1] as HTMLElement))?.click();
+      (document.getElementById("tab-evidence") as HTMLElement | null)?.click();
+      document.getElementById("detail-body")?.scrollIntoView({ block: "start" });
+    });
     await sleep(700);
+    await say(9);
+    await page.evaluate(() => (document.getElementById("tab-transcript") as HTMLElement | null)?.click());
+    await sleep(600);
     await say(10, true);
 
     // the numbers

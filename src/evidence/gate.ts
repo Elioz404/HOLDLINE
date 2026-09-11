@@ -124,10 +124,9 @@ function isUsableValue(value: unknown, unknownValues: readonly string[]): boolea
 /**
  * Does this turn actually request something, rather than merely name a topic?
  *
- * A live call forced this distinction. The agent introduced itself as "an
- * automated assistant checking the National Weather Service Seattle forecast
- * for today", never asked anything, and the gate credited the field because
- * the probe words were sitting in that sentence. A statement of purpose is not
+ * A live call forced this distinction. The agent opened by naming the very
+ * thing it had been sent to find out, never asked anything, and the gate
+ * credited the field because the probe words were sitting in that sentence. A statement of purpose is not
  * a question, and crediting one is the exact failure this file exists to
  * prevent — arrived at from the opposite direction.
  *
@@ -143,6 +142,17 @@ const REQUEST_SIGNALS: readonly RegExp[] = [
   /\bi(?:'m| am)\s+calling\s+(?:about|to ask|to check|to confirm)\b/i,
   /\b(?:could|can|would|will)\s+you\b/i,
   /\b(?:tell|let)\s+me\s+(?:if|whether|what|when)\b/i,
+  // Interrogative word order at the start of a clause, for the question that
+  // arrives without its mark. A live call produced one: the agent opened a
+  // clause with an inversion and the turn was cut off before the mark, so it
+  // read as a question to any person and matched none of the signals above.
+  //
+  // Anchored to a clause boundary on purpose, because that is what separates
+  // it from the class directly above, which must keep failing. A statement of
+  // purpose names the topic without inverting; an inversion after a boundary
+  // asks. The two classes are measured against each other on every run and
+  // neither number is allowed to move alone.
+  /(?:^|[\u2014\u2013,.;:!?]\s+)(?:is|are|am|was|were|do|does|did|has|have|had)\s+\w/i,
 ];
 
 function requestsSomething(text: string): boolean {
@@ -318,6 +328,18 @@ export function runEvidenceGate(input: GateInput): GateReport {
 
   if (!hasTranscript) {
     reasons.push("No transcript turns were returned for this call.");
+  }
+
+  // "Required field `x`: never_asked" repeated once per field reads as a
+  // judgement about the place called. When the agent put no question at all,
+  // the call failed, not the place, and an operator needs to tell those apart
+  // before deciding whether to dial again. Two live calls produced exactly
+  // this shape: every field never_asked, because every bot turn was an answer
+  // to the other party rather than a question of its own.
+  const askedNothing =
+    hasTranscript && !input.transcriptTurns.some((t) => t.speaker === "bot" && t.text.includes("?"));
+  if (askedNothing) {
+    reasons.push("The agent asked no questions on this call, so nothing could be established.");
   }
 
   const unsupported = fields.filter((f) => f.unsupported);

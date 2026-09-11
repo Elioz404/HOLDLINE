@@ -25,12 +25,13 @@ cases — reproduce it there, not from this directory:
 
 | | |
 | --- | --- |
-| Invented values caught | 50/50 — 100% |
-| Paraphrases wrongly accused of invention | 0/50 — 0% |
-| Paraphrases withheld | 50/50 — 100% |
-| Prose non-answers caught | 50/50 — 100% |
-| Genuine prose answers wrongly withheld | 0/50 — 0% |
-| Topic mentioned but never asked, caught | 50/50 — 100% |
+| Invented values caught | 45/45 — 100% |
+| Paraphrases wrongly accused of invention | 0/44 — 0% |
+| Paraphrases withheld | 44/44 — 100% |
+| Prose non-answers caught | 44/44 — 100% |
+| Genuine prose answers wrongly withheld | 0/44 — 0% |
+| Topic mentioned but never asked, caught | 44/44 — 100% |
+| Questions that arrived without a mark, eaten | 0/44 — 0% |
 
 Every paraphrase in that corpus is withheld. Better probes are the only thing
 that moves that number.

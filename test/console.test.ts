@@ -47,7 +47,7 @@ afterAll(async () => {
 
 describe("console page", () => {
   it("serves a self-contained page with no external resources", async () => {
-    const res = await fetch(base);
+    const res = await fetch(`${base}/console`);
     const html = await res.text();
 
     expect(res.status).toBe(200);
@@ -62,14 +62,25 @@ describe("console page", () => {
     // The page carries its own JavaScript. A broken escape ships a blank
     // console to a judge and nothing else in the suite would notice, because
     // every other test talks to the API rather than the page.
-    const html = await (await fetch(base)).text();
+    const html = await (await fetch(`${base}/console`)).text();
     const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
     expect(script, "page should carry an inline script").toBeTruthy();
     expect(() => new Function(script!)).not.toThrow();
   });
 
+  it("serves a landing page at the root whose script parses", async () => {
+    // Same reasoning as the console above, for the page a judge sees first.
+    const res = await fetch(`${base}/`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("HOLDLINE");
+    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+    expect(script, "landing should carry an inline script").toBeTruthy();
+    expect(() => new Function(script!)).not.toThrow();
+  });
+
   it("sets a content security policy and nosniff", async () => {
-    const res = await fetch(base);
+    const res = await fetch(`${base}/console`);
     expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   });

@@ -144,7 +144,7 @@ describe("the README does not promise images it lacks", () => {
     const page = readFileSync(join(ROOT, "src/console/index.html"), "utf8");
     for (const tool of ["src/tools/gallery.ts", "src/tools/video.ts"]) {
       const source = readFileSync(join(ROOT, tool), "utf8");
-      for (const id of ["planout", "board", "cards", "summary"]) {
+      for (const id of ["planout", "board", "rows", "detail-body"]) {
         expect(source, `${tool} should reference #${id}`).toContain(id);
         expect(page, `page should still define #${id}`).toContain(id);
       }

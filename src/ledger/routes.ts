@@ -14,11 +14,7 @@
  *
  * On a real call placed 2026-09-07 there was no `unknown` speaker at all —
  * only `bot` and `user` — and the automated system was labelled `user`
- * throughout:
- *
- *   [10] user: "Thank you for calling the United States Postal Service
- *               customer care center. To hear our privacy policy, press 2."
- *   [56] user: "You have reached us after normal business hours..."
+ * throughout, from the opening greeting onwards.
  *
  * Under the old rule that call reported a person answering at ten seconds,
  * which would have made every hold figure meaningless.
@@ -112,9 +108,9 @@ function isFragment(text: string): boolean {
  * Phrases the agent uses when it works a keypad.
  *
  * Kept narrow on purpose, and no longer the whole story. A real carrier call
- * showed the agent navigating an IVR entirely by speech — it said what it
- * wanted, the system confirmed "you're calling to track a package, right?" and
- * moved it to that branch — while saying none of these words. Watching only
+ * showed the agent navigating an IVR entirely by speech: it said what it
+ * wanted, the system repeated the request back to confirm it and moved the
+ * call to that branch, while the agent said none of these words. Watching only
  * for keypad language reported "navigated: no" about a call that navigated.
  *
  * So `usedKeypad` answers one narrow question honestly. The broader one — did
@@ -214,9 +210,9 @@ export class RouteCache {
    *
    * This replaced a "time until a person answered" figure, which a real call
    * showed could not be computed honestly: a modern voice IVR is written to
-   * sound conversational — the sample call's system said "in a few words,
-   * please tell me how I can help you" — and no amount of phrase matching
-   * separates that from a receptionist.
+   * sound conversational, inviting the caller to say what they need in their
+   * own words, and no amount of phrase matching separates that from a
+   * receptionist.
    *
    * Call duration needs no such judgement. It is the time a person did not
    * spend holding, which is the claim worth making anyway.

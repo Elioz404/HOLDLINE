@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOLDLINE — only the answers the call actually established</title>
+<style>
+  :root {
+    --ground:#FBFBFD; --sunk:#F2F4F8; --card:#FFFFFF; --ink-rev:#0B0E14;
+    --ink:#0C1119; --ink-2:#3E4859; --muted:#6F7A8B;
+    --line:#E4E8EF; --line-2:#D1D8E2;
+    --brand:#7C5CFF; --brand-w:#F1EEFF;
+    --live:#0E7D55; --live-w:#E2F3EA;
+    --hold:#A96C08; --hold-w:#FBEFDA;
+    --drop:#BC3726; --drop-w:#FBE6E2;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --r:14px; --r-sm:9px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 14px 40px -18px rgba(16,24,40,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#070A0F; --sunk:#10151D; --card:#131821; --ink-rev:#05070B;
+      --ink:#E9EDF4; --ink-2:#BAC4D2; --muted:#7C8798;
+      --line:#1F2733; --line-2:#2E3846;
+      --brand:#9B83FF; --brand-w:#201A37;
+      --live:#43BE8A; --live-w:#0C2A20;
+      --hold:#E2A03C; --hold-w:#2F220B;
+      --drop:#E47D6A; --drop-w:#301611;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 44px -20px rgba(0,0,0,.75);
+    }
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { margin:0; line-height:1.14; letter-spacing:-.03em; }
+  p { margin:0; }
+  a { color:inherit; }
+  :focus-visible { outline:2px solid var(--brand); outline-offset:3px; border-radius:6px; }
+
+  .wrap { max-width:1060px; margin:0 auto; padding:0 24px; }
+  section { padding:76px 0; }
+  .rule { border-top:1px solid var(--line); }
+  .eyebrow { font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+             color:var(--muted); margin-bottom:16px; display:flex; align-items:center; gap:9px; }
+  .eyebrow::before { content:""; width:18px; height:1px; background:var(--line-2); }
+  .lede { color:var(--ink-2); font-size:17.5px; max-width:62ch; margin-top:16px; }
+  .small { color:var(--muted); font-size:13.5px; }
+  .n { font-variant-numeric:tabular-nums; }
+
+  /* ── the strip: a switchboard status bar, not a marketing nav ──────── */
+  .bar { position:sticky; top:0; z-index:9; background:var(--ink-rev); color:#E9EDF4;
+         border-bottom:1px solid rgba(255,255,255,.08); }
+  .bar .wrap { display:flex; align-items:center; gap:16px; height:46px; }
+  .brand { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:-.01em; font-size:14px; }
+  /* Amber wherever it marks a line that is ringing or on hold. */
+  .lamp { width:7px; height:7px; border-radius:50%; background:var(--hold);
+          box-shadow:0 0 0 3px rgba(169,108,8,.28); }
+  /* Beside the wordmark it is identity, not state, so it matches the dot the
+     console puts next to the same word. */
+  .brand .lamp { background:var(--brand); box-shadow:0 0 0 3px rgba(124,92,255,.3); }
+  @media (prefers-reduced-motion: no-preference){ .lamp { animation:blink 2.2s ease-in-out infinite; } }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .bar .status { font-family:var(--mono); font-size:10.5px; letter-spacing:.12em;
+                 text-transform:uppercase; color:#8A94A6; }
+  .bar nav { margin-left:auto; display:flex; gap:2px; align-items:center; }
+  .bar nav a { font-size:13px; color:#B9C2CF; text-decoration:none; padding:6px 11px; border-radius:7px; }
+  .bar nav a:hover { background:rgba(255,255,255,.07); color:#fff; }
+  .bar nav a.go { background:var(--brand); color:#fff; font-weight:600; }
+
+  /* Narrow screens: the strip keeps the brand and the one action that
+     matters. A clipped nav reads as a broken page, which is the first
+     thing a judge on a phone would see. */
+  @media (max-width:720px) {
+    .bar .status, .bar nav a:not(.go) { display:none; }
+    .bar .wrap { gap:10px; }
+    .wrap { padding:0 18px; }
+    section { padding:52px 0; }
+    .sheet { overflow-x:auto; }
+    .sheet table { min-width:440px; }
+    .ivr li { grid-template-columns:34px 1fr; row-gap:2px; }
+    .ivr li .after { grid-column:2; }
+    .turn { grid-template-columns:1fr; gap:2px; }
+    .tbl { display:block; overflow-x:auto; white-space:nowrap; }
+  }
+
+  .btn { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--line-2);
+         background:var(--card); color:var(--ink); padding:10px 16px; border-radius:var(--r-sm);
+         font-weight:600; font-size:14px; text-decoration:none; cursor:pointer; }
+  .btn:hover { border-color:var(--brand); }
+  .btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
+
+  /* ── hero: the wait, made literal ──────────────────────────────────── */
+  .hero { padding:72px 0 60px; }
+  .hero h1 { font-size:clamp(36px,5.4vw,58px); font-weight:800; max-width:15ch; }
+  .hero h1 em { font-style:normal; color:var(--brand); }
+  .cta { display:flex; gap:10px; margin-top:26px; flex-wrap:wrap; }
+
+  .proof { display:flex; gap:26px; margin:30px 0 0; padding-top:20px;
+           border-top:1px solid var(--line); flex-wrap:wrap; }
+  .proof div { margin:0; }
+  .proof dt { font-family:var(--mono); font-size:24px; font-weight:600; letter-spacing:-.03em;
+              font-variant-numeric:tabular-nums; }
+  .proof dd { margin:2px 0 0; color:var(--muted); font-size:12.5px; max-width:15ch; }
+
+  .ivr { border:1px solid var(--line); border-radius:var(--r); background:var(--card);
+         box-shadow:var(--shadow); overflow:hidden; margin-top:30px; }
+  .ivr .top { background:var(--sunk); border-bottom:1px solid var(--line); padding:11px 18px;
+              font-family:var(--mono); font-size:11px; letter-spacing:.11em; text-transform:uppercase;
+              color:var(--muted); display:flex; align-items:center; gap:9px; }
+  .ivr ol { margin:0; padding:6px 0; list-style:none; }
+  .ivr li { display:grid; grid-template-columns:34px 1fr auto; gap:14px; align-items:center;
+            padding:11px 18px; border-bottom:1px solid var(--line); font-size:14.5px; }
+  .ivr li:last-child { border-bottom:0; }
+  .key { width:28px; height:28px; border-radius:7px; border:1px solid var(--line-2);
+         background:var(--sunk); display:grid; place-items:center; font-family:var(--mono);
+         font-size:13px; font-weight:600; color:var(--ink-2); }
+  .ivr li.want .key { border-color:var(--brand); color:var(--brand); background:var(--brand-w); }
+  .ivr li .after { font-family:var(--mono); font-size:11.5px; color:var(--muted); }
+  .ivr .bottom { padding:13px 18px; background:var(--sunk); border-top:1px solid var(--line);
+                 font-size:13.5px; color:var(--ink-2); }
+
+  /* ── the call sheet: what the job looks like on paper ──────────────── */
+  .sheet { border:1px solid var(--line); border-radius:var(--r); background:var(--card);
+           box-shadow:var(--shadow); overflow:hidden; margin-top:28px; }
+  .sheet table { width:100%; border-collapse:collapse; font-size:14px; }
+  .sheet th { text-align:left; font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+              text-transform:uppercase; color:var(--muted); font-weight:600;
+              padding:12px 18px; background:var(--sunk); border-bottom:1px solid var(--line); }
+  .sheet td { padding:11px 18px; border-bottom:1px solid var(--line); }
+  .sheet tr:last-child td { border-bottom:0; }
+  .sheet .who { font-weight:600; }
+  .sheet .t { font-family:var(--mono); color:var(--ink-2); }
+  .sheet .tot td { background:var(--sunk); font-weight:700; }
+
+  .tag { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
+         font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; padding:3px 8px;
+         border-radius:999px; background:var(--sunk); color:var(--muted); }
+  .tag.ok { background:var(--live-w); color:var(--live); }
+  .tag.held { background:var(--drop-w); color:var(--drop); }
+  .tag i { width:5px; height:5px; border-radius:50%; background:currentColor; }
+
+  /* ── the replay ───────────────────────────────────────────────────── */
+  .demo { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:28px; align-items:start; }
+  @media (max-width:860px){ .demo { grid-template-columns:1fr; } }
+  .pane { border:1px solid var(--line); border-radius:var(--r); background:var(--card);
+          box-shadow:var(--shadow); overflow:hidden; }
+  .pane .top { background:var(--sunk); border-bottom:1px solid var(--line); padding:10px 16px;
+               font-family:var(--mono); font-size:10.5px; letter-spacing:.12em;
+               text-transform:uppercase; color:var(--muted); }
+  .pane .inner { padding:14px 16px; }
+  .turn { display:grid; grid-template-columns:78px 1fr; gap:10px; padding:9px 10px;
+          border-radius:var(--r-sm); margin-bottom:5px; opacity:0; transform:translateY(6px);
+          transition:opacity .35s, transform .35s; }
+  .turn.in { opacity:1; transform:none; }
+  .turn.bot { background:var(--sunk); }
+  .who-l { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+           color:var(--muted); padding-top:3px; }
+  .turn.bot .who-l { color:var(--brand); }
+  .said { font-size:14px; }
+
+  .slot { border:1px solid var(--line); border-radius:var(--r-sm); padding:13px; margin-bottom:9px;
+          transition:border-color .3s, background .3s; }
+  .slot .name { font-family:var(--mono); font-size:12px; color:var(--ink-2); }
+  .slot .val { font-weight:700; font-size:19px; margin-top:3px; color:var(--muted); }
+  .slot .note { font-size:13px; color:var(--muted); margin-top:6px; }
+  .slot.ok { border-left:3px solid var(--live); background:var(--live-w); }
+  .slot.ok .val { color:var(--live); }
+  .slot.held { border-left:3px solid var(--drop); background:var(--drop-w); }
+  .slot.held .val { color:var(--drop); font-family:var(--mono); font-weight:400; font-size:15px; }
+  .quote { font-size:13px; color:var(--ink-2); border-left:2px solid var(--line-2);
+           padding-left:9px; margin:6px 0; }
+  .replay { border:0; background:transparent; color:var(--brand); font-weight:600;
+            font-size:13px; cursor:pointer; padding:4px 0; }
+
+  .verdicts { border:1px solid var(--line); border-radius:var(--r); overflow:hidden; margin-top:26px; }
+  .verdicts div { background:var(--card); padding:13px 18px; display:grid;
+                  grid-template-columns:184px 1fr; gap:16px; border-bottom:1px solid var(--line); }
+  .verdicts div:last-child { border-bottom:0; }
+  @media (max-width:640px){ .verdicts div { grid-template-columns:1fr; gap:3px; } }
+  .verdicts code { font-family:var(--mono); font-size:12.5px; color:var(--brand); }
+  .verdicts p { color:var(--ink-2); font-size:14px; }
+
+  /* ── incident log ─────────────────────────────────────────────────── */
+  .log { border:1px solid var(--line); border-radius:var(--r); overflow:hidden; margin-top:28px;
+         background:var(--card); box-shadow:var(--shadow); }
+  .log article { padding:18px; border-bottom:1px solid var(--line);
+                 display:grid; grid-template-columns:26px 1fr; gap:14px; }
+  .log article:last-child { border-bottom:0; }
+  .log .idx { font-family:var(--mono); font-size:11px; color:var(--muted); padding-top:3px; }
+  .log h3 { font-size:15.5px; margin-bottom:5px; }
+  .log p { color:var(--ink-2); font-size:14px; }
+
+  .tbl { width:100%; border-collapse:collapse; margin-top:22px; font-size:15px; }
+  .tbl th { text-align:left; font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+            text-transform:uppercase; color:var(--muted); font-weight:600;
+            padding:0 12px 10px; border-bottom:1px solid var(--line); }
+  .tbl td { padding:13px 12px; border-bottom:1px solid var(--line); }
+  .tbl .v { font-variant-numeric:tabular-nums; font-weight:700; font-family:var(--mono); }
+  .tbl .bad { color:var(--drop); } .tbl .good { color:var(--live); }
+
+  .figs { display:grid; grid-template-columns:repeat(auto-fit,minmax(178px,1fr)); gap:12px; margin-top:24px; }
+  .fig { border:1px solid var(--line); border-radius:var(--r); padding:18px; background:var(--card); }
+  .fig b { display:block; font-family:var(--mono); font-size:27px; font-weight:600;
+           letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .fig.good b { color:var(--live); } .fig.bad b { color:var(--drop); }
+  .fig span { display:block; color:var(--muted); font-size:13px; margin-top:6px; }
+
+  .verify { border:1px solid var(--line); border-radius:var(--r); background:var(--card);
+            box-shadow:var(--shadow); padding:18px; margin-top:26px; }
+  .verify .k { font-family:var(--mono); font-size:10px; letter-spacing:.13em;
+               text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .verify p { color:var(--ink-2); font-size:14.5px; max-width:64ch; }
+  .verify pre { background:var(--ink-rev); color:#E9EDF4; border-radius:var(--r-sm);
+                padding:13px 14px; margin:13px 0; overflow-x:auto; }
+  .verify pre code { font-family:var(--mono); font-size:12px; line-height:1.6;
+                     white-space:pre; background:none; border:0; padding:0; color:inherit; }
+  .verify .after { font-size:13.5px; color:var(--muted); }
+  .verify .after code { font-family:var(--mono); font-size:12.5px; color:var(--brand); }
+
+  footer { border-top:1px solid var(--line); padding:34px 0 54px; color:var(--muted); font-size:13.5px; }
+  footer a { color:var(--brand); text-decoration:none; }
+  footer a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="wrap">
+    <span class="brand"><span class="lamp" aria-hidden="true"></span>HOLDLINE</span>
+    <span class="status" id="strip">line open &middot; simulation</span>
+    <nav>
+      <a href="#measured">The numbers</a>
+      <a href="#found">What phones found</a>
+      <a class="go" href="/console">Open the console</a>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Built on CALL-E &middot; for the person whose job is making the same call forty times</div>
+      <h1>A phone agent can answer a question <em>it never asked.</em></h1>
+      <p class="lede">
+        HOLDLINE calls a list of places, asks them all the same thing, and gives you back
+        only the answers the call actually established. The rest come back empty, with the
+        reason.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="/console">Open the console</a>
+        <a class="btn" href="https://github.com/Elioz404/HOLDLINE">Read the code</a>
+      </div>
+      <dl class="proof">
+        <div><dt>28</dt><dd>real calls placed</dd></div>
+        <div><dt>6</dt><dd>defects a telephone found</dd></div>
+        <div><dt>400</dt><dd>labelled cases, offline</dd></div>
+      </dl>
+    </div>
+
+  </section>
+
+  <section class="rule">
+    <div class="eyebrow">The problem</div>
+    <h2>A patient is ready to leave hospital, and cannot.</h2>
+    <p class="lede">
+      Nobody has confirmed a bed. So a discharge coordinator rings a care home and meets
+      this, before a person says a word — and then does it again, seven more times.
+    </p>
+
+    <div class="ivr">
+      <div class="top"><span class="lamp" aria-hidden="true"></span>Ringing &middot; Oakfield Care Home &middot; 0:04</div>
+      <ol>
+        <li><span class="key">1</span><span>For visiting hours and directions</span><span class="after"></span></li>
+        <li><span class="key">2</span><span>For the accounts office</span><span class="after"></span></li>
+        <li class="want"><span class="key">3</span><span>For admissions and placements</span><span class="after">the one you want</span></li>
+        <li><span class="key">4</span><span>To repeat these options</span><span class="after"></span></li>
+        <li><span class="key">0</span><span>To hold for reception</span><span class="after">2:12 of hold music</span></li>
+      </ol>
+      <div class="bottom">
+        Two questions on the other side of that. Then hang up, and start again at the next
+        home on the list.
+      </div>
+    </div>
+
+    <div class="sheet">
+      <table>
+        <thead><tr><th>One placement, by hand</th><th>On the phone</th><th>What you end up with</th></tr></thead>
+        <tbody>
+          <tr><td class="who">Oakfield Care Home</td><td class="t n">6:10</td><td><span class="tag ok"><i></i>bed, nursing level</span></td></tr>
+          <tr><td class="who">Riverside Nursing</td><td class="t n">4:48</td><td><span class="tag">no answer</span></td></tr>
+          <tr><td class="who">Belmont House</td><td class="t n">7:22</td><td><span class="tag ok"><i></i>bed only</span></td></tr>
+          <tr><td class="who">Five more on the list</td><td class="t n">29:40</td><td><span class="tag">three reached</span></td></tr>
+          <tr class="tot"><td>Eight homes, one placement</td><td class="t n">48:00</td><td>five answers you can act on</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small" style="margin-top:14px">
+      Five placements a week puts that near four hours on the telephone. Those are
+      assumptions, written down so you can change them. The hours are not the expensive
+      part &mdash; a <em>&ldquo;yes, we have a bed&rdquo;</em> the call never established
+      is, because the patient stays another night and the coordinator starts again
+      tomorrow.
+    </p>
+  </section>
+
+  <section class="rule">
+    <div class="eyebrow">What it does</div>
+    <h2>It checks the answer against what was said out loud.</h2>
+    <p class="lede">
+      A call result tells you what the model concluded. It does not tell you what was
+      spoken, and nothing in it separates <em>asked and not understood</em> from
+      <em>never asked at all</em>. Watch one call land.
+    </p>
+
+    <div class="demo" id="demo">
+      <div class="pane">
+        <div class="top">What the agent said</div>
+        <div class="inner">
+          <div id="turns"></div>
+          <button class="replay" id="replay" type="button" hidden>Play it again</button>
+        </div>
+      </div>
+      <div class="pane">
+        <div class="top">What comes back</div>
+        <div class="inner">
+          <div class="slot" id="slot-bed">
+            <div class="name">bed_available</div>
+            <div class="val" id="val-bed">waiting&hellip;</div>
+            <div class="note" id="note-bed">Nothing has been established yet.</div>
+          </div>
+          <div class="slot" id="slot-nursing">
+            <div class="name">nursing_level</div>
+            <div class="val" id="val-nursing">waiting&hellip;</div>
+            <div class="note" id="note-nursing">Nothing has been established yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="verdicts">
+      <div><code>verified</code><p>The agent raised it and a usable answer came back &mdash; quoted, so you can read it yourself.</p></div>
+      <div><code>asked_but_unclear</code><p>Asked. No usable answer.</p></div>
+      <div><code>unattributed</code><p>Something was asked and answered, but no probe for this field matches it. Withheld, and <em>not</em> accused of being invented.</p></div>
+      <div><code>never_asked</code><p>Nothing was asked that this value could answer. A value present here is flagged and withheld.</p></div>
+      <div><code>no_transcript</code><p>Nothing to check against, so nothing is credited.</p></div>
+    </div>
+  </section>
+
+  <section class="rule" id="measured">
+    <div class="eyebrow">Measured, including the cost</div>
+    <h2>The catch rate and its price print on the same screen.</h2>
+    <p class="lede">
+      400 labelled cases, offline, no calls placed. Every figure below comes back from one
+      command: <code style="font-family:var(--mono);font-size:14px">npm run eval</code>.
+    </p>
+    <table class="tbl">
+      <thead><tr><th>What a caller ends up believing</th><th>Answers returned</th><th>Never established</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Trusting <code style="font-family:var(--mono);font-size:13.5px">structured_result</code></td>
+            <td class="v">355</td><td class="v bad">178</td><td class="v bad">50.1% wrong</td></tr>
+        <tr><td>Through the gate</td>
+            <td class="v">133</td><td class="v good">0</td><td class="v good">0.0% wrong</td></tr>
+      </tbody>
+    </table>
+    <div class="figs">
+      <div class="fig good"><b>45/45</b><span>invented values caught</span></div>
+      <div class="fig good"><b>0/44</b><span>paraphrases wrongly accused</span></div>
+      <div class="fig"><b>44</b><span>real answers withheld — the price, published</span></div>
+    </div>
+    <p class="small" style="margin-top:14px">
+      A benchmark containing only the cases a system handles is marketing. That last
+      figure is the cost of the zero above it, and it prints on every run.
+    </p>
+  </section>
+
+  <section class="rule" id="found">
+    <div class="eyebrow">Twenty-eight live calls</div>
+    <h2>Six defects a real telephone found, that 164 tests could not.</h2>
+    <p class="lede">
+      Each was fixed in the same order: add the case to the corpus, measure the damage,
+      then change the check. No transcript, recording or call id from any of them is kept
+      in the repository.
+    </p>
+    <div class="log">
+      <article>
+        <span class="idx">01</span>
+        <div>
+          <h3>A refusal written as a sentence</h3>
+          <p>A call returned a whole sentence saying nothing had been established. The gate called it <em>verified</em> &mdash; its usable-value check knew only short tokens like <code style="font-family:var(--mono);font-size:13px">unknown</code>. Every value in 400 cases was one word long, so the corpus could not see its own worst case.</p>
+        </div>
+      </article>
+      <article>
+        <span class="idx">02</span>
+        <div>
+          <h3>Our own number, read back to us</h3>
+          <p>A phone tree read our outbound caller id aloud. The transcript kept it in national notation and our redaction matched E.164 only, so a full number reached a file the tool calls shareable. One notation is not every notation.</p>
+        </div>
+      </article>
+      <article>
+        <span class="idx">03</span>
+        <div>
+          <h3>A statement counted as a question</h3>
+          <p>The agent opened by naming the very thing it had been sent to find out, asked nothing, and those words happened to sit inside the probe. The gate credited a field on <em>less</em> evidence than it claims to require &mdash; the exact failure it exists to prevent, from the other direction.</p>
+        </div>
+      </article>
+      <article>
+        <span class="idx">04</span>
+        <div>
+          <h3>The architecture, taken away</h3>
+          <p>A multi-recipient call returns no transcript turns; the same numbers dialled one at a time do. The batch could verify nothing, so a batch is now one call per place. It reproduces in one command: <code style="font-family:var(--mono);font-size:13px">npm run probe:fanout</code>.</p>
+        </div>
+      </article>
+      <article>
+        <span class="idx">05</span>
+        <div>
+          <h3>A pipeline that disagreed with itself</h3>
+          <p>The gate credits a field only when a turn actually asked for it. The compiled task carried a goal, a routing hint and a disclosure &mdash; and nothing telling the agent to ask. Two calls came back with the agent having put no question of its own. The tests could not see it: the fake returns transcripts already full of questions.</p>
+        </div>
+      </article>
+      <article>
+        <span class="idx">06</span>
+        <div>
+          <h3>The question that arrived without its mark</h3>
+          <p>The agent asked, in plain interrogative order, and the turn was cut off before the question mark. The gate called it <em>never asked</em> and threw the field away &mdash; while crediting three other turns from the same call, each about the call rather than the subject, because each carried a mark. Measured: <strong>44 of 44</strong> genuine questions eaten before the fix, <strong>0 of 44</strong> after, with statements of purpose still caught 44/44.</p>
+        </div>
+      </article>
+    </div>
+    <p class="small" style="margin-top:16px">
+      Our fake transport was built from the documentation, so it returned transcripts the
+      platform does not. A fake built from documentation models the documentation. Only a
+      telephone models the telephone.
+    </p>
+  </section>
+
+  <section class="rule">
+    <div class="eyebrow">See it work</div>
+    <h2>See it with no telephone, then with one.</h2>
+    <p class="lede">
+      The console runs the same engine against a local fake. A console reachable off its
+      own machine is locked into simulation, whatever else is set &mdash; so a visitor
+      cannot spend credits or ring anybody.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="/console">Open the console</a>
+      <a class="btn" href="https://github.com/Elioz404/HOLDLINE">164 tests, no credentials</a>
+      <!-- WHEN THE VIDEO IS PUBLIC: uncomment the next line and paste the URL.
+           The same link also belongs in the footer below. -->
+      <!-- <a class="btn" href="PASTE_YOUTUBE_URL_HERE">Watch the demo</a> -->
+    </div>
+
+    <!-- The console proves the gate; it cannot prove a telephone, and it says
+         so. No artifact of ours could prove it either, and none is published.
+         What settles it is the reader running it on their own account. -->
+    <div class="verify">
+      <div class="k">And when you want the telephone</div>
+      <p>
+        No artifact of ours can prove this dials, so place the call yourself &mdash; your
+        CALL-E account, your number. The plan runs with no key and reaches no network.
+      </p>
+      <pre><code>npm run call -- \
+  --ask &quot;Are you accepting new patients?&quot; \
+  --to '+1...' \
+  --field accepting=&quot;accepting new patients&quot; \
+  --live</code></pre>
+      <p class="after">
+        <code>--live</code> prints the masked numbers and waits for you to type
+        <code>LIVE</code>. Drop it and nothing dials. An established field comes back with
+        the turn that established it, quoted; one the call never covered comes back empty
+        with the reason.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    Built for <strong>CALL-E: Your Code Is Calling</strong>.
+    <a href="https://github.com/Elioz404/HOLDLINE">Source</a> &middot;
+    <a href="https://github.com/CALLE-AI/awesome-phone-call-agents/pull/353">Pull request</a>
+    <!-- <span>&middot;</span> <a href="PASTE_YOUTUBE_URL_HERE">Demo video</a> --><br>
+    Every number shown anywhere in this project is masked. A field the transcript does not
+    support is withheld, whatever the model reported.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ── the replay ───────────────────────────────────────────────────
+     The simulator's own scenario, which reproduces CALL-E issue #316:
+     one field asked and answered, one returned populated and confident
+     with nothing behind it. */
+  var TURNS = [
+    { who: "Recording", bot: false, text: "Please listen carefully. For admissions, press 3." },
+    { who: "Agent",     bot: true,  text: "Selecting admissions." },
+    { who: "Recording", bot: false, text: "All of our representatives are busy. Please hold." },
+    { who: "Answered",  bot: false, text: "Admissions, how can I help?" },
+    { who: "Agent",     bot: true,  text: "Hello, I am an automated assistant calling on behalf of a patient." },
+    { who: "Agent",     bot: true,  text: "Can I ask, is a bed free this week?" },
+    { who: "Answered",  bot: false, text: "Yes, we have one." },
+    { who: "Agent",     bot: true,  text: "Thank you for your time. Goodbye." }
+  ];
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function reset() {
+    $("turns").innerHTML = TURNS.map(function (t, i) {
+      return '<div class="turn' + (t.bot ? " bot" : "") + '" data-i="' + i + '">' +
+        '<span class="who-l">' + esc(t.who) + "</span>" +
+        '<span class="said">' + esc(t.text) + "</span></div>";
+    }).join("");
+    $("slot-bed").className = "slot";
+    $("slot-nursing").className = "slot";
+    $("val-bed").textContent = "waiting…";
+    $("val-nursing").textContent = "waiting…";
+    $("note-bed").textContent = "Nothing has been established yet.";
+    $("note-nursing").textContent = "Nothing has been established yet.";
+    $("replay").hidden = true;
+  }
+
+  var timers = [];
+  function play() {
+    timers.forEach(clearTimeout);
+    timers = [];
+    reset();
+    var rows = $("turns").querySelectorAll(".turn");
+    rows.forEach(function (row, i) {
+      timers.push(setTimeout(function () { row.classList.add("in"); }, 300 + i * 600));
+    });
+
+    var after = 300 + TURNS.length * 600;
+
+    timers.push(setTimeout(function () {
+      $("slot-bed").className = "slot ok";
+      $("val-bed").textContent = "yes";
+      $("note-bed").innerHTML =
+        '<div class="quote">&ldquo;Can I ask, is a bed free this week?&rdquo;</div>' +
+        "verified &mdash; a turn raised this topic and a usable answer came back.";
+    }, after));
+
+    timers.push(setTimeout(function () {
+      $("slot-nursing").className = "slot held";
+      $("val-nursing").textContent = "withheld";
+      $("note-nursing").innerHTML =
+        "The call reported <strong>high</strong> for this, confidently. " +
+        "never_asked &mdash; nothing in the conversation could have produced it, so it does not come back.";
+      $("replay").hidden = false;
+    }, after + 1000));
+  }
+
+  $("replay").addEventListener("click", play);
+
+  reset();
+  if ("IntersectionObserver" in window) {
+    var seen = false;
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting && !seen) { seen = true; play(); } });
+    }, { threshold: 0.3 }).observe($("demo"));
+  } else {
+    play();
+  }
+})();
+</script>
+</body>
+</html>

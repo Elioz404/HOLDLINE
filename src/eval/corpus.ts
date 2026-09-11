@@ -25,7 +25,8 @@ export type CaseKind =
   | "asked_paraphrase_answered"
   | "asked_prose_answered"
   | "asked_prose_non_answer"
-  | "asked_mention_only";
+  | "asked_mention_only"
+  | "asked_inverted_no_mark";
 
 export interface EvalCase {
   readonly id: string;
@@ -62,6 +63,14 @@ interface FieldTemplate {
    * gate read it as a question.
    */
   readonly mentions: readonly string[];
+  /**
+   * Genuine questions in interrogative word order that carry no question mark.
+   *
+   * A live call produced one: the agent opened a clause with an inversion and
+   * the turn arrived truncated, so the mark never came. It reads as a question
+   * to any person and matched none of the request signals.
+   */
+  readonly invertedAsks: readonly string[];
   readonly answers: readonly string[];
   readonly unclearReplies: readonly string[];
   readonly value: string;
@@ -75,6 +84,10 @@ interface FieldTemplate {
 const TEMPLATES: readonly FieldTemplate[] = [
   {
     field: "accepts_new_patients",
+    invertedAsks: [
+      "Just checking — are you accepting new patients this week,",
+      "Sorry, one more thing. Do you accept new patients at the moment,",
+    ],
     mentions: [
       "This is an automated assistant checking whether you are accepting new patients.",
       "Okay, so that covers new patients. Thank you.",
@@ -93,6 +106,10 @@ const TEMPLATES: readonly FieldTemplate[] = [
   },
   {
     field: "reference_status",
+    invertedAsks: [
+      "Just checking — is reference 88431 still open,",
+      "Sorry, one more thing. Has the status of reference 88431 changed,",
+    ],
     mentions: [
       "This is an automated assistant looking into the status of a reference.",
       "Okay, so that covers the status of the reference. Thanks.",
@@ -111,6 +128,10 @@ const TEMPLATES: readonly FieldTemplate[] = [
   },
   {
     field: "part_in_stock",
+    invertedAsks: [
+      "Just checking — do you have that part in stock today,",
+      "Sorry, one more thing. Is that part in stock right now,",
+    ],
     mentions: [
       "This is an automated assistant checking what you have in stock today.",
       "Okay, so that covers what is in stock today. Thanks.",
@@ -129,6 +150,10 @@ const TEMPLATES: readonly FieldTemplate[] = [
   },
   {
     field: "reached_department",
+    invertedAsks: [
+      "Just checking — is this the account services department,",
+      "Sorry, one more thing. Am I through to account services,",
+    ],
     mentions: [
       "This is an automated assistant trying to reach the right department.",
       "Okay, so that covers the department. Thanks.",
@@ -236,6 +261,7 @@ const KINDS: readonly CaseKind[] = [
   "asked_prose_answered",
   "asked_prose_non_answer",
   "asked_mention_only",
+  "asked_inverted_no_mark",
 ];
 
 function buildCase(id: string, kind: CaseKind, template: FieldTemplate, rand: () => number): EvalCase {
@@ -298,6 +324,17 @@ function buildCase(id: string, kind: CaseKind, template: FieldTemplate, rand: ()
       turns.push({ offset_seconds: 20, speaker: "user", text: pick(STONEWALL, rand) });
       trulyAsked = false;
       trulyAnswered = false;
+      value = template.value;
+      break;
+
+    case "asked_inverted_no_mark":
+      // A real question, in interrogative order, that arrived without its
+      // question mark — and an answer that followed it. Ground truth: asked
+      // and answered, so withholding here is a genuine answer thrown away.
+      turns.push({ offset_seconds: 12, speaker: "bot", text: pick(template.invertedAsks, rand) });
+      turns.push({ offset_seconds: 18, speaker: "user", text: pick(template.answers, rand) });
+      trulyAsked = true;
+      trulyAnswered = true;
       value = template.value;
       break;
 

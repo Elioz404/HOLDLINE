@@ -65,8 +65,8 @@ const MENU_MARKERS = [
  *
  * The first version asked for `reached_human` with
  * `/hello|hi there|good morning|am i speaking/i`, which matched the agent's
- * own greeting — "Hello, can you hear me?" — and reported the field verified
- * on a call that reached no human at all. `references/probes.md` warns against
+ * own opening greeting and reported the field verified on a call that reached
+ * no human at all. `references/probes.md` warns against
  * exactly that and I wrote it anyway.
  *
  * These now match the question, not the pleasantry, and both are optional:
@@ -171,8 +171,8 @@ function buildTask(goal: string, menuOnly = false): ReturnType<typeof compileTas
       // prompt, and a prompt made of prohibitions gets a refusal.
       // Positive framing, but the prohibition that keeps a stranger off the
       // line stays. Dropping it once was enough: on a real carrier call the
-      // agent answered "yes, please connect me to a representative" three
-      // times when the IVR offered. Rewriting for tone lost a safety rule.
+      // agent accepted a transfer to a representative three separate times
+      // when the IVR offered one. Rewriting for tone lost a safety rule.
       text: menuOnly
         ? "Listen first, then use the menu. Decline any offer of a representative."
         : "Navigate any phone menu to reach a live representative.",
@@ -242,9 +242,9 @@ function report(call: Call): void {
   for (const reason of gate.reasons) console.log(`   · ${reason}`);
 
   // Three separate questions, because the first version collapsed them into
-  // one and lied. It matched the word "press" anywhere in the transcript and
-  // reported traversal on a call where the recording said "press 2" and the
-  // agent pressed nothing.
+  // one and lied. It matched the word "press" anywhere in the transcript, so a
+  // recording that merely offered a keypad option was enough to report
+  // traversal on a call where the agent pressed nothing.
   const menuHeard = turns.some((t) => t.speaker !== "bot" && soundsAutomated(t.text));
   const personAt = route?.firstNonSystemTurnAtSeconds ?? null;
 

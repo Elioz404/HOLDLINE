@@ -234,6 +234,72 @@ unnecessary. We would happily trade the code for the primitive.
 
 ---
 
+## 8. `task_completed: true` on calls that established nothing
+
+Across five calls to two unrelated automated lines on 2026-09-11, three came
+back `task_completed: true` at high confidence — 0.82, 0.78 and 0.84 — while
+the same payload's own `summary` and `evidence` recorded that nothing had been
+obtained. One summary states the assistant did not navigate the phone tree;
+another states no status or availability was provided. The other two calls
+returned `false` at 0.82 and 0.85, which was accurate.
+
+Five calls is not a measurement and is not offered as one. The point is that
+the flag and the summary in the same response disagreed, three times, so a
+client cannot branch on `task_completed` alone.
+
+**Suggested fix:** either derive the flag from the same judgement that writes
+the summary, or document that it reports whether the call ran to completion
+rather than whether the task succeeded. Right now the name implies the second.
+
+---
+
+## 9. The agent speaks a keypad choice instead of sending one
+
+On two unrelated IVRs the agent responded to a "press 1" prompt by saying the
+digit aloud — once as the bare number, once announcing that it was pressing.
+Neither system advanced. CALL-E's own summary for one of them described it
+without being asked: the assistant spoke a menu choice instead of navigating
+the keypad prompt.
+
+Any keypad-gated line is therefore unreachable, which is most published
+customer-service numbers.
+
+**Suggested fix:** send DTMF when the task asks for a keypad option, or state
+plainly in the docs that DTMF is not supported so nobody designs a workflow
+around a tree they cannot traverse.
+
+---
+
+## 10. A task instruction is not a control, and there is no duration limit
+
+A task instructed the agent to refuse a transfer to a person. Offered one, it
+accepted and waited on hold. The instruction was rewritten as a concrete
+positive action rather than a prohibition — the framing your own prompt guidance
+favours — and the call was placed again. It accepted again.
+
+Two calls ran **920.216 s** and **920.139 s**: within a tenth of a second of one
+another, so a platform limit rather than a coincidence. Both spent the bulk of
+that in a hold queue, the agent answering recorded announcements and
+advertisements conversationally until the limit cut the call.
+
+`CreateCallParams` exposes `task`, `recipients`, the result schemas,
+`metadata`, `webhookUrl` and `idempotencyKey`. There is no maximum-duration
+parameter, and `timeoutMs` governs only how long the client waits for a result,
+not how long the call runs. So the caller has no way to bound this: not by
+instruction, because the agent does not follow it, and not by parameter,
+because none exists.
+
+Three calls to that one line, every one of them ending in the queue, ran 38
+minutes and cost **1,551 credits** — 305, 623 and 623, or about 40.8 credits a
+minute across all three. A caller who assumes per-call billing and points this
+at a queue finds out by arithmetic.
+
+**Suggested fix:** a `max_duration_seconds` on call creation, and a documented
+behaviour for hold detection — even just ceasing to speak into recorded audio
+would cut the cost of this substantially.
+
+---
+
 ## Smaller notes
 
 - **`calle` on npm is not CALL-E.** There is an unrelated package named `calle`
@@ -241,6 +307,12 @@ unnecessary. We would happily trade the code for the primitive.
   Worth a line in the install guide; a typo there installs a stranger's code.
 - **The docs site links an `openapi.yaml` that 404s** (the object is missing
   from the bucket), so the machine-readable contract is not actually available.
+- **Billing is by duration and the console does not say so anywhere obvious.**
+  Roughly 40 credits a minute: a fifteen-minute call cost 623, a thirty-second
+  one is negligible.
+  The hackathon framing — "20 complimentary calls" — reads as per-call, so a
+  participant budgets in calls and is billed in minutes. One line beside the
+  balance would prevent it.
 - **Three different Discord invites are published**, and they are not obviously
   the same server: `discord.gg/6AbXUzUV8w` in the repository README,
   `discord.gg/SDcGdhgRzj` on heycall-e.com, and

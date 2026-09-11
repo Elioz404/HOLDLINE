@@ -140,6 +140,23 @@ export class NoDialableTargetsError extends Error {
 export function planQueue(request: QueueRequest): QueuePlan {
   const segments: TaskSegment[] = [
     { label: "goal", text: request.goal, priority: "required" },
+    // The Evidence Gate credits a field only when a bot turn actually asked
+    // for it, and until this clause existed nothing in the compiled task ever
+    // told the agent to ask. Two live calls came back with zero bot questions:
+    // on one the agent listened to a menu and said "Okay"; on the other it
+    // answered the IVR's questions for seven minutes without putting one of
+    // its own. The probes' ask phrases reached the API as schema descriptions,
+    // which guide extraction, never as an instruction to speak. A gate that
+    // demands evidence and a compiler that never requests it is one pipeline
+    // disagreeing with itself.
+    {
+      label: "ask",
+      // 27 characters, and the 255 are CALL-E's hard cap, so every one of
+      // them comes out of the caller's own question. Kept as short as it can
+      // be and still be an instruction.
+      text: "Ask each question out loud.",
+      priority: "required",
+    },
     {
       label: "disclosure",
       text: "Say you are an automated assistant when a person answers.",

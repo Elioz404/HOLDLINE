@@ -32,6 +32,8 @@ import { SCENARIOS, createFakeCalle, type Scenario } from "../testing/fake-calle
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PAGE = readFileSync(join(HERE, "index.html"), "utf8");
+/** The way in: what this is, before it asks anybody to fill a form. */
+const LANDING = readFileSync(join(HERE, "landing.html"), "utf8");
 
 export interface ConsoleOptions {
   /** Force simulation regardless of environment. Defaults to true unless live is enabled. */
@@ -110,8 +112,28 @@ const requestFrom = (body: WireBody, mode: "preview" | "live"): QueueRequest => 
  * is the whole point of the console — a verified answer and a withheld one,
  * from the same dispatch, with the reason shown.
  */
+/**
+ * What the simulated callee says, and the value the simulated API reports.
+ *
+ * These have to agree. An earlier version answered every question with
+ * "Yes, that's right." and reported "yes" for every field, so a call that
+ * asked "what level of nursing care?" came back with `nursing_level: yes` —
+ * kept, and displayed as established. The Evidence Gate was right to keep it:
+ * it judges whether the question was asked, not whether the answer means
+ * anything, and "yes" is a usable value. The nonsense was the script's.
+ *
+ * Fields the operator invents fall back to a yes/no exchange, which is at
+ * least self-consistent.
+ */
+const SCRIPTED: Record<string, { readonly said: string; readonly value: string }> = {
+  bed_available: { said: "Yes, we have one free this week.", value: "yes" },
+  nursing_level: { said: "We can take residential and nursing.", value: "residential and nursing" },
+};
+const UNSCRIPTED = { said: "Yes, that's right.", value: "yes" } as const;
+const scriptFor = (name: string) => SCRIPTED[name] ?? UNSCRIPTED;
+
 function simulationFor(targets: readonly QueueTarget[], fields: readonly WireField[]): Scenario {
-  const result = Object.fromEntries(fields.map((f) => [f.name, "yes"]));
+  const result = Object.fromEntries(fields.map((f) => [f.name, scriptFor(f.name).value]));
   // Only dialable targets become recipients, because only those are sent. A
   // simulation that answers for a number the plan refused would invent a
   // recipient the real API never returns.
@@ -139,12 +161,20 @@ function simulationFor(targets: readonly QueueTarget[], fields: readonly WireFie
         },
       ];
       for (const [i, field] of asked.entries()) {
+        // The ask phrases exist for the Evidence Gate to match against; they
+        // are not sentences. Splicing one in directly produced "Can I ask,
+        // bed free?". "about" carries a noun phrase without mangling it, and
+        // the phrase is still present for the gate to find.
         turns.push({
           offset_seconds: 142 + i * 12,
           speaker: "bot" as const,
-          text: `Can I ask, ${field.asks[0]}?`,
+          text: `Can I ask about ${field.asks[0]}?`,
         });
-        turns.push({ offset_seconds: 148 + i * 12, speaker: "user" as const, text: "Yes, that's right." });
+        turns.push({
+          offset_seconds: 148 + i * 12,
+          speaker: "user" as const,
+          text: scriptFor(field.name).said,
+        });
       }
       if (!complete) {
         turns.push({ offset_seconds: 170, speaker: "bot" as const, text: "Thank you for your time. Goodbye." });
@@ -266,6 +296,16 @@ export function createConsole(options: ConsoleOptions = {}): Server {
       const url = new URL(req.url ?? "/", "http://localhost");
 
       if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+        res.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+          "X-Content-Type-Options": "nosniff",
+        });
+        res.end(LANDING);
+        return;
+      }
+
+      if (req.method === "GET" && (url.pathname === "/console" || url.pathname === "/console/")) {
         res.writeHead(200, {
           "Content-Type": "text/html; charset=utf-8",
           "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
@@ -561,6 +601,15 @@ export function createConsole(options: ConsoleOptions = {}): Server {
                 verdict: f.verdict,
                 supportingTurn: f.supportingTurn,
                 note: f.note,
+              })),
+              // The console shows a verdict beside the turns that produced it,
+              // so it has to be sent the turns. This goes out through `redact`
+              // like every other field, and the view it feeds is loopback-only
+              // for exactly this reason.
+              transcript: target.transcript.map((turn) => ({
+                at: turn.offset_seconds,
+                speaker: turn.speaker,
+                text: turn.text,
               })),
             });
           }
