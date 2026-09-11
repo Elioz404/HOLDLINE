@@ -52,16 +52,21 @@ nor the corpus could see, and one of them took away the engine’s central desig
 decision.
 
 **Try it without installing anything:**
-[holdline-23xh.onrender.com](https://holdline-23xh.onrender.com) — what this is
-and why, with a call that plays out and lands on a verified answer beside a
-withheld one. The console itself is at
-[`/console`](https://holdline-23xh.onrender.com/console), public and
-simulation-only.
+[tryholdline.vercel.app](https://tryholdline.vercel.app) — what this is and why,
+with a call that plays out and lands on a verified answer beside a withheld one.
+The console itself is at
+[holdline-23xh.onrender.com/console](https://holdline-23xh.onrender.com/console),
+public and simulation-only.
 
-It sleeps on a free tier, so the first request after a quiet spell takes about
-half a minute to wake. A console reachable off its own machine cannot place
-calls; that is enforced in [`src/console/run.ts`](src/console/run.ts), not left
-to the deployment config.
+Two hosts, because they need different things. The page is static and is served
+from one that never sleeps. The console is a process that holds three ledgers
+and a fake transport for as long as it runs — replaying an idempotency key has
+to find the call an earlier request created — so it lives on a host that keeps
+one alive, and that host lets it sleep to stay free. The page knocks on it while
+you read, so the wait is spent before anyone reaches the button.
+
+A console reachable off its own machine cannot place calls; that is enforced in
+[`src/console/run.ts`](src/console/run.ts), not left to the deployment config.
 
 [Status](#status) lists what does not exist, and what the live calls changed.
 Nothing below describes unwritten code.

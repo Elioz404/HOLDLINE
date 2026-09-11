@@ -131,15 +131,16 @@ including echoed metadata and error payloads.
 
 ## Verification without a call
 
-Nothing to install: <https://holdline-23xh.onrender.com>
+Nothing to install: <https://tryholdline.vercel.app>
 
-The page explains what this is; the console itself is at `/console`. It runs
-the same engine against a local fake transport and says `SIMULATION` on every
-screen. A console reachable off its own machine is locked into simulation by
-`src/console/run.ts` whatever else is set, so a visitor cannot spend credits or
-ring anybody — that is enforced in code, not in the deployment config. It is on
-a free plan and sleeps when idle, so a first request after a quiet spell takes
-a moment.
+That page explains what this is and links to the console, which is at
+<https://holdline-23xh.onrender.com/console>. The console runs the same engine
+against a local fake transport and says `SIMULATION` on every screen. A console
+reachable off its own machine is locked into simulation by `src/console/run.ts`
+whatever else is set, so a visitor cannot spend credits or ring anybody — that
+is enforced in code, not in the deployment config. It is on a free plan and
+sleeps when idle; the page knocks on it while you read, so the wake is usually
+spent before you reach the button.
 
 From a clone, the same engine over stdio:
 
