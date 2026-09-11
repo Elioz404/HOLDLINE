@@ -70,6 +70,11 @@
   .bar nav a:hover { background:rgba(255,255,255,.07); color:#fff; }
   .bar nav a.go { background:var(--brand); color:#fff; font-weight:600; }
 
+  /* The bar is sticky and 46px tall, so an anchor lands under it unless the
+     target reserves the room. Every in-page link in that bar points at one of
+     these, and arriving with the heading hidden reads as a broken link. */
+  #demo, #measured, #found { scroll-margin-top:62px; }
+
   /* Narrow screens: the strip keeps the brand and the one action that
      matters. A clipped nav reads as a broken page, which is the first
      thing a judge on a phone would see. */
@@ -232,6 +237,7 @@
     <span class="brand"><span class="lamp" aria-hidden="true"></span>HOLDLINE</span>
     <span class="status" id="strip">line open &middot; simulation</span>
     <nav>
+      <a href="#demo">See a call</a>
       <a href="#measured">The numbers</a>
       <a href="#found">What phones found</a>
       <a class="go" href="/console">Open the console</a>
@@ -597,17 +603,59 @@
     }, after + 1000));
   }
 
-  $("replay").addEventListener("click", play);
-
-  reset();
-  if ("IntersectionObserver" in window) {
-    var seen = false;
-    new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) { if (e.isIntersecting && !seen) { seen = true; play(); } });
-    }, { threshold: 0.3 }).observe($("demo"));
-  } else {
+  // Play once, whichever way the reader arrives.
+  //
+  // Scrolling here is the common case and the observer handles it. Following
+  // the link in the bar is not: an anchor jump moves the page in one step and
+  // does not reliably produce an intersection callback, which would leave
+  // somebody who clicked "See a call" looking at two panels that say
+  // "waiting…" and never change. The hash is the second trigger for that.
+  var started = false;
+  function playOnce() {
+    if (started) return;
+    started = true;
     play();
   }
+
+  reset();
+
+  // Three ways in, because this is the one part of the page worth watching and
+  // it must not be sitting on "waiting…" when somebody arrives.
+  //
+  // The observer is the normal path. The scroll handler is a backstop: it
+  // needs nothing but a scroll event and a rectangle, and it detaches itself
+  // the moment either one wins. The hash covers arriving by link, where the
+  // page moves in a single step.
+  function demoOnScreen() {
+    var box = $("demo").getBoundingClientRect();
+    return box.top < window.innerHeight * 0.9 && box.bottom > 0;
+  }
+
+  function onScroll() {
+    if (!demoOnScreen()) return;
+    window.removeEventListener("scroll", onScroll);
+    playOnce();
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) playOnce(); });
+    }, { threshold: 0.3 }).observe($("demo"));
+  }
+
+  // Already in view on load, on a short screen or a deep-linked reload.
+  if (demoOnScreen()) playOnce();
+
+  function playIfTargeted() {
+    if (location.hash === "#demo") playOnce();
+  }
+  window.addEventListener("hashchange", playIfTargeted);
+  playIfTargeted();
+
+  // The button under the transcript replays deliberately, so it bypasses the
+  // once-only guard the two triggers above share.
+  $("replay").addEventListener("click", play);
 })();
 </script>
 </body>
