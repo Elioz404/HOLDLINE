@@ -630,13 +630,20 @@ telephone found that neither the suite nor the corpus could see, and each was
 measured before it was fixed. Two of them share a commit because they were
 found in the same hour.
 
-`submission/` holds the contribution to
-[`awesome-phone-call-agents`](https://github.com/CALLE-AI/awesome-phone-call-agents):
-the pull request body, the exact README lines, and the steps. The skill was
-copied into a working clone of that repository and its own
-`scripts/validate_repository.py` was run against it — it prints
-`Repository validation passed.` The branch name was checked with their
-`scripts/check_branch_name.py`.
+**The skill is merged.** It lives upstream at
+[`skills/holdline`](https://github.com/CALLE-AI/awesome-phone-call-agents/tree/main/skills/holdline),
+by way of [pull request #353](https://github.com/CALLE-AI/awesome-phone-call-agents/pull/353),
+after three rounds of review from that repository's maintainer. What those
+rounds asked for is in [Status](#status) and in this file's history: the skill
+was reframed as documentation because it claimed commands it could not run, and
+every artifact from a live call was removed from the tree and from the public
+history, twice.
+
+`submission/` holds the contribution as it was submitted: the pull request body,
+the exact README lines, and the steps. The skill was copied into a working clone
+of that repository and its own `scripts/validate_repository.py` was run against
+it — it prints `Repository validation passed.` The branch name was checked with
+their `scripts/check_branch_name.py`.
 
 Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 `InMemoryDispatchRegistry` lose their contents when the process exits. The
