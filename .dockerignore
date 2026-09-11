@@ -1,0 +1,21 @@
+# A build context is not a repository. `.gitignore` keeps these out of git; it
+# does nothing for `docker build`, which copies whatever is in this directory
+# unless told otherwise — and an image is pushed to a registry.
+#
+# `probe-output/` is the one that matters: it holds raw and masked output from
+# real calls, including call identifiers. It is kept out of git deliberately
+# and must stay out of any image for the same reason.
+probe-output/
+docs/video/
+.env
+.env.*
+
+node_modules/
+dist/
+.git/
+.github/
+
+# Test and tooling surface the running console never reads.
+test/
+coverage/
+*.log

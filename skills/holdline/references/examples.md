@@ -28,8 +28,8 @@ Response:
 
 ```json
 {
-  "task": "Reach the front desk. Ask whether the practice is accepting new patients this month. Say you are an automated assistant when a person answers.",
-  "taskChars": "148/255",
+  "task": "Ask whether the practice is accepting new patients this month. Reach the front desk. Ask each question out loud. Say you are an automated assistant when a person answers.",
+  "taskChars": "170/255",
   "droppedSegments": [],
   "idempotencyKey": "hl1_5f2b...",
   "dialable": [
@@ -46,6 +46,12 @@ Response:
 `taskChars` is worth reading. The API caps `task` at 255 characters; when a
 goal is long, `droppedSegments` names what was cut to make room. The routing
 hint is dropped before anything required.
+
+Three of those segments are always present: the goal, *"Ask each question out
+loud."* and the disclosure. The middle one is there because the gate credits a
+field only when a turn actually asked for it — see
+[probes.md](probes.md#a-match-is-not-enough-the-turn-has-to-ask) — and it costs
+28 characters of the 255 that the goal would otherwise have.
 
 ## A number that will not be dialed
 

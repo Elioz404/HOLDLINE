@@ -160,7 +160,7 @@ Twenty-eight live calls were placed while building this, and six of them found d
 MEASURED, INCLUDING THE COST
 400 labelled cases. Everything the gate catches, and the 44 real answers it withholds to catch them, print on the same screen every run. A benchmark containing only the cases a system handles is marketing.
 
-Engine, Evidence Gate, MCP server, 164 tests that place no calls and read no credentials:
+Engine, Evidence Gate, MCP server, 167 tests that place no calls and read no credentials:
 https://github.com/Elioz404/HOLDLINE
 
 Pull request:

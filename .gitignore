@@ -16,3 +16,5 @@ docs/video/audio/
 # Rendered video output. The pipeline that makes it is the source; the render
 # is not, and one of its segments was built from real calls.
 docs/video/
+
+public/

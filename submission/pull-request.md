@@ -131,6 +131,18 @@ including echoed metadata and error payloads.
 
 ## Verification without a call
 
+Nothing to install: <https://holdline-23xh.onrender.com>
+
+The page explains what this is; the console itself is at `/console`. It runs
+the same engine against a local fake transport and says `SIMULATION` on every
+screen. A console reachable off its own machine is locked into simulation by
+`src/console/run.ts` whatever else is set, so a visitor cannot spend credits or
+ring anybody — that is enforced in code, not in the deployment config. It is on
+a free plan and sleeps when idle, so a first request after a quiet spell takes
+a moment.
+
+From a clone, the same engine over stdio:
+
 ```bash
 HOLDLINE_SIMULATE=1 npm run mcp
 ```
@@ -139,7 +151,7 @@ Runs the tools against a local fake transport. Every response carries
 `simulated: true` and a notice that no telephone was involved, so simulated
 output cannot be mistaken for a finding.
 
-The engine repository's suite is 164 tests with no network and no credentials,
+The engine repository's suite is 167 tests with no network and no credentials,
 including tests that drive a real MCP client against the server over an
 in-memory transport, and tests that drive the genuine `@call-e/calle`
 `CalleClient` against a fake transport implementing the documented wire

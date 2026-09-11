@@ -161,11 +161,10 @@ describe("evaluation harness", () => {
   });
 
   it("does not credit a field the bot only mentioned", () => {
-    // Found by a live call, not by this suite. The agent introduced itself as
-    // "an automated assistant checking the National Weather Service Seattle
-    // forecast for today", asked nothing, and the gate marked the field
-    // verified because the probe words were sitting in that sentence. Counted
-    // from the corpus for the reason given above.
+    // Found by a live call, not by this suite. The agent opened by naming the
+    // very thing it had been sent to find out, asked nothing, and the gate
+    // marked the field verified because the probe words were sitting in that
+    // sentence. Counted from the corpus for the reason given above.
     const mentions = buildCorpus(400).filter((item) => item.kind === "asked_mention_only").length;
     expect(report.mentionOnly.total).toBe(mentions);
     expect(report.mentionOnly.rate).toBe(1);

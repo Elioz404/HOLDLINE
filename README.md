@@ -46,16 +46,16 @@ description is not an artifact and this is somebody else's phone line.
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and
 route cache, an MCP server, an operations console that needs no API key, and
-164 tests that place no calls and read no credentials. Twenty-eight live calls
+167 tests that place no calls and read no credentials. Twenty-eight live calls
 have been placed through CALL-E. Six of them found defects that neither the suite
 nor the corpus could see, and one of them took away the engine’s central design
 decision.
 
 **Try it without installing anything:**
-[holdline-j0ku.onrender.com](https://holdline-j0ku.onrender.com) — what this is
+[holdline-23xh.onrender.com](https://holdline-23xh.onrender.com) — what this is
 and why, with a call that plays out and lands on a verified answer beside a
 withheld one. The console itself is at
-[`/console`](https://holdline-j0ku.onrender.com/console), public and
+[`/console`](https://holdline-23xh.onrender.com/console), public and
 simulation-only.
 
 It sleeps on a free tier, so the first request after a quiet spell takes about
@@ -75,7 +75,7 @@ The first three steps need no key, reach no network, and ring nobody.
 ```bash
 git clone https://github.com/Elioz404/HOLDLINE && cd HOLDLINE && npm install
 
-npm test                    # 164 tests, no network, no credentials
+npm test                    # 167 tests, no network, no credentials
 npm run eval                # 400 labelled cases; prints the table in Measured
 
 # Plan a real batch. No key needed: a preview never reaches the network.
@@ -113,7 +113,7 @@ you can read for yourself whether the withholding was right. Run the same
 command again and nothing re-dials: the idempotency key comes from the batch
 id, never from the clock.
 
-The public console at [`/console`](https://holdline-j0ku.onrender.com/console)
+The public console at [`/console`](https://holdline-23xh.onrender.com/console)
 runs this same engine against a local fake, and says so on every screen. It is
 the product without the telephone; the commands above are the telephone.
 
@@ -522,7 +522,7 @@ instead of reading a 201 as "a phone rang".
 
 ```bash
 npm install
-npm test          # 164 tests, no network, no credentials
+npm test          # 167 tests, no network, no credentials
 npm run eval      # measures the gate against a seeded corpus
 npm run typecheck
 npm run replay    # judges a saved call; no network, no key, no call
@@ -606,12 +606,16 @@ git log --reverse --oneline
 | A later call found the gate crediting an unasked field; measured, then fixed | 9 Sep |
 | The first live batch retired the fan-out architecture; one call per target now | 9 Sep |
 | That finding, packaged so anyone can reproduce it | 9 Sep |
+| Live-call media removed, and the pipeline that regenerated it | 10 Sep |
+| A landing page, and the console rebuilt around it | 11 Sep |
+| Four more calls: the compiled task never told the agent to ask. Measured, then fixed | 11 Sep |
+| A question that arrived without its mark, thrown away. Measured, then fixed | 11 Sep |
 
 Dates rather than commit hashes, because this history has been rewritten twice
 to take phone numbers out of it and every hash moved both times. The subjects
 are stable; `git log --reverse --oneline` lines them up against the table.
 
-The last four rows are the ones worth reading. Each one is a defect a real
+Six of these rows are the ones worth reading. Each one is a defect a real
 telephone found that neither the suite nor the corpus could see, and each was
 measured before it was fixed. Two of them share a commit because they were
 found in the same hour.

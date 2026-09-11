@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>HOLDLINE — only the answers the call actually established</title>
 <style>
   :root {
@@ -378,7 +379,7 @@
 
   <section class="rule" id="found">
     <div class="eyebrow">Twenty-eight live calls</div>
-    <h2>Six defects a real telephone found, that 164 tests could not.</h2>
+    <h2>Six defects a real telephone found, that 167 tests could not.</h2>
     <p class="lede">
       Each was fixed in the same order: add the case to the corpus, measure the damage,
       then change the check. No transcript, recording or call id from any of them is kept
@@ -445,7 +446,7 @@
     </p>
     <div class="cta">
       <a class="btn primary" href="/console">Open the console</a>
-      <a class="btn" href="https://github.com/Elioz404/HOLDLINE">164 tests, no credentials</a>
+      <a class="btn" href="https://github.com/Elioz404/HOLDLINE">167 tests, no credentials</a>
       <!-- WHEN THE VIDEO IS PUBLIC: uncomment the next line and paste the URL.
            The same link also belongs in the footer below. -->
       <!-- <a class="btn" href="PASTE_YOUTUBE_URL_HERE">Watch the demo</a> -->
@@ -489,6 +490,49 @@
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
+
+  /* ── where the console lives ──────────────────────────────
+     This page is static and can be served from anywhere. The console cannot:
+     it holds three ledgers and a fake transport for the life of its process,
+     so it needs a host that keeps one alive. Published separately, the links
+     here have to cross to that host; published by the console itself, they
+     must not.
+
+     Rather than guess from the hostname — which gets it wrong the moment the
+     static copy is previewed on another local port — the page asks. A HEAD to
+     its own `/console` answers it: served by the console, that is a 200 and
+     nothing changes. Served by a static host, it is a 404 and the links are
+     rewritten to the console's own origin.
+
+     That host lets the process sleep to stay free, so a visitor would pay for
+     the wake on their first click. The knock below spends that wait on the
+     part nobody is looking at: it fires while the page is being read, and by
+     the time anyone reaches the button the process is up. `no-cors` because
+     nothing here reads the answer — the point is only that something knocked. */
+  var CONSOLE_ORIGIN = "https://holdline-23xh.onrender.com";
+
+  function pointConsoleLinksAt(href) {
+    Array.prototype.forEach.call(document.querySelectorAll('a[href$="/console"]'), function (a) {
+      a.setAttribute("href", href);
+    });
+  }
+
+  function useRemoteConsole() {
+    pointConsoleLinksAt(CONSOLE_ORIGIN + "/console");
+    try {
+      fetch(CONSOLE_ORIGIN + "/api/state", { mode: "no-cors", cache: "no-store" });
+    } catch (e) {
+      // A console that will not wake is the click's problem, not this page's.
+    }
+  }
+
+  try {
+    fetch("/console", { method: "HEAD", cache: "no-store" })
+      .then(function (r) { if (!r.ok) useRemoteConsole(); })
+      .catch(useRemoteConsole);
+  } catch (e) {
+    useRemoteConsole();
+  }
 
   /* ── the replay ───────────────────────────────────────────────────
      The simulator's own scenario, which reproduces CALL-E issue #316:

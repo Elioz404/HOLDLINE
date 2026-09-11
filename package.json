@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json && node -e \"for (const f of ['index.html','landing.html']) require('fs').copyFileSync('src/console/'+f,'dist/console/'+f)\"",
+    "build": "tsc -p tsconfig.build.json && node -e \"for (const f of ['index.html','landing.html','favicon.svg']) require('fs').copyFileSync('src/console/'+f,'dist/console/'+f)\"",
     "probe": "tsx --env-file-if-exists=.env src/probe/validate-traversal.ts",
     "eval": "tsx src/eval/run.ts",
     "mcp": "tsx --env-file-if-exists=.env src/mcp/run.ts",
@@ -25,7 +25,8 @@
     "narrate": "tsx src/tools/narration.ts",
     "mixdown": "tsx src/tools/mixdown.ts",
     "gallery": "tsx src/tools/gallery.ts",
-    "probe:fanout": "tsx --env-file-if-exists=.env src/probe/fanout-transcripts.ts"
+    "probe:fanout": "tsx --env-file-if-exists=.env src/probe/fanout-transcripts.ts",
+    "landing": "node -e \"const f=require('fs');f.mkdirSync('public',{recursive:true});f.copyFileSync('src/console/landing.html','public/index.html');f.copyFileSync('src/console/favicon.svg','public/favicon.svg');console.log('public/index.html + favicon.svg')\""
   },
   "dependencies": {
     "@call-e/calle": "^0.7.0",

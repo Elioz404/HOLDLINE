@@ -34,7 +34,11 @@ import { redactError } from "../core/redact.js";
 import { classifyFailure } from "../core/outcome.js";
 
 const OUTPUT_DIR = "probe-output";
-const TASK = "Ask whether this is the National Weather Service office. Say you are an automated assistant when a person answers.";
+// Deliberately generic. This probe counts transcript turns; it does not care
+// what the line says back, and naming the organisation we happened to dial
+// would both identify it and make the default nonsense for anyone pointing
+// `--to` somewhere else.
+const TASK = "Ask what this line can help with. Say you are an automated assistant when a person answers.";
 
 interface Args {
   readonly to: string[];

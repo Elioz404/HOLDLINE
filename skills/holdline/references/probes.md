@@ -3,6 +3,10 @@
 A probe is how the gate recognises that the agent raised a topic. It is a list
 of phrases matched case-insensitively against the turns the agent spoke.
 
+A match is necessary but not sufficient — see
+[A match is not enough](#a-match-is-not-enough-the-turn-has-to-ask) before
+blaming a probe for a field that came back `never_asked`.
+
 ```json
 {
   "name": "accepts_new_patients",
@@ -35,6 +39,35 @@ cases — reproduce it there, not from this directory:
 
 Every paraphrase in that corpus is withheld. Better probes are the only thing
 that moves that number.
+
+## A match is not enough: the turn has to ask
+
+A probe firing means the agent said the words. The gate asks a second question
+of the same turn: did it **request** anything? A turn that merely names the
+topic does not credit the field.
+
+That distinction came from a live call. The agent opened by naming the very
+thing it had been sent to find out, asked nothing, and the probe words were
+sitting inside that sentence. The gate returned `verified` on a value no
+question produced — the exact failure it exists to prevent, reached from the
+other direction.
+
+A turn counts as a request when it carries a question mark, or a construction
+like *"could you"*, *"I wanted to check whether"*, *"I'm calling to ask"*,
+*"tell me if"* — or interrogative word order at the start of a clause, for the
+question that arrives truncated before its mark. That last signal came from a
+live call too, in the opposite direction: the agent asked plainly, the turn was
+cut off before the mark, and the gate threw a real question away. Both classes
+are measured against each other on every run, which is what the last two rows
+of the table above are: statements of purpose must keep being refused, and
+questions without a mark must stop being eaten.
+
+**None of this is something probes can fix**, and that is the point of saying
+it here. If a field keeps coming back `never_asked` while you can see the topic
+in the transcript, read the agent's turn: it probably announced the subject
+instead of asking about it. The engine's compiled task carries a required
+instruction — *"Ask each question out loud."* — for exactly this reason. Left
+out, the agent narrates, and nothing is quotable.
 
 ## Rules that help
 

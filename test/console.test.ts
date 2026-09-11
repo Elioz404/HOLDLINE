@@ -79,6 +79,33 @@ describe("console page", () => {
     expect(() => new Function(script!)).not.toThrow();
   });
 
+  it("serves the tab icon as a route, because the pages forbid data: images", async () => {
+    // `default-src 'self'` means a data: URI favicon is silently dropped. This
+    // is the check that the icon is reachable the only way the policy allows.
+    const res = await fetch(`${base}/favicon.svg`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("image/svg+xml");
+    expect(await res.text()).toContain("<svg");
+  });
+
+  it("points both pages at it", async () => {
+    for (const path of ["/", "/console"]) {
+      const html = await (await fetch(`${base}${path}`)).text();
+      expect(html, path).toContain('rel="icon"');
+    }
+  });
+
+  it("answers HEAD for the pages it answers GET for", async () => {
+    // The landing asks this way whether the origin serving it also serves the
+    // console; a 404 here sends every visitor across to a second host that may
+    // be asleep, for a page that was one relative link away.
+    for (const path of ["/", "/console", "/favicon.svg"]) {
+      const res = await fetch(`${base}${path}`, { method: "HEAD" });
+      expect(res.status, path).toBe(200);
+      expect(await res.text(), path).toBe("");
+    }
+  });
+
   it("sets a content security policy and nosniff", async () => {
     const res = await fetch(`${base}/console`);
     expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");

@@ -31,9 +31,59 @@ import { RouteCache, observeRoute } from "../ledger/routes.js";
 import { SCENARIOS, createFakeCalle, type Scenario } from "../testing/fake-calle.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PAGE = readFileSync(join(HERE, "index.html"), "utf8");
+
+/**
+ * Find a page, wherever this happens to be running from.
+ *
+ * The two HTML files sit beside this module in both layouts that matter: the
+ * TypeScript source under `tsx`, and the compiled output, because the build
+ * copies them across. A bundler is the third case and it does not respect
+ * either: it traces imports, and nothing imports these — they are read at
+ * runtime. So a deployment that rewrites the file layout can leave the pages
+ * somewhere else entirely, and the failure is a server that starts and then
+ * cannot answer its own front page.
+ *
+ * Checking a short list of candidates costs nothing at startup and removes
+ * that whole class of problem. Failing here is still fatal, and should be:
+ * a console that cannot serve its console is not degraded, it is broken, and
+ * the message says which paths were tried.
+ */
+function readPage(name: string): string {
+  const candidates = [
+    join(HERE, name),
+    join(HERE, "..", "..", "src", "console", name),
+    join(process.cwd(), "src", "console", name),
+    join(process.cwd(), "dist", "console", name),
+  ];
+  for (const candidate of candidates) {
+    try {
+      return readFileSync(candidate, "utf8");
+    } catch {
+      // Try the next layout.
+    }
+  }
+  throw new Error(`Could not find ${name}. Looked in: ${candidates.join(", ")}`);
+}
+
+/**
+ * The wordmark's dot, as a tab icon.
+ *
+ * Same shape and proportions as the lamp beside HOLDLINE on the landing. It
+ * does not blink: Firefox animates an SVG favicon and Chrome does not, so a
+ * blinking one is a mark that behaves differently depending on who is looking.
+ *
+ * A file rather than a string, because the landing is also published as a
+ * static page elsewhere and that copy needs the same icon. One source, two
+ * places that serve it.
+ *
+ * Served as a route rather than inlined as a data: URI, because the pages send
+ * `default-src 'self'` and a data: image is not 'self'.
+ */
+const FAVICON = readPage("favicon.svg");
+
+const PAGE = readPage("index.html");
 /** The way in: what this is, before it asks anybody to fill a form. */
-const LANDING = readFileSync(join(HERE, "landing.html"), "utf8");
+const LANDING = readPage("landing.html");
 
 export interface ConsoleOptions {
   /** Force simulation regardless of environment. Defaults to true unless live is enabled. */
@@ -295,23 +345,41 @@ export function createConsole(options: ConsoleOptions = {}): Server {
     void (async () => {
       const url = new URL(req.url ?? "/", "http://localhost");
 
-      if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+      // A HEAD is a GET that stops at the headers, and answering 404 to one
+      // for a page that exists is a lie a client can act on: the landing asks
+      // this way whether the origin serving it also serves the console.
+      const reading = req.method === "GET" || req.method === "HEAD";
+      const body = (text: string): void => {
+        res.end(req.method === "HEAD" ? undefined : text);
+      };
+
+      if (reading && (url.pathname === "/" || url.pathname === "/index.html")) {
         res.writeHead(200, {
           "Content-Type": "text/html; charset=utf-8",
           "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
           "X-Content-Type-Options": "nosniff",
         });
-        res.end(LANDING);
+        body(LANDING);
         return;
       }
 
-      if (req.method === "GET" && (url.pathname === "/console" || url.pathname === "/console/")) {
+      if (reading && url.pathname === "/favicon.svg") {
+        res.writeHead(200, {
+          "Content-Type": "image/svg+xml; charset=utf-8",
+          "Cache-Control": "public, max-age=86400",
+          "X-Content-Type-Options": "nosniff",
+        });
+        body(FAVICON);
+        return;
+      }
+
+      if (reading && (url.pathname === "/console" || url.pathname === "/console/")) {
         res.writeHead(200, {
           "Content-Type": "text/html; charset=utf-8",
           "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
           "X-Content-Type-Options": "nosniff",
         });
-        res.end(PAGE);
+        body(PAGE);
         return;
       }
 
