@@ -105,6 +105,8 @@ local output, reproducible from one command.
 
 ## Publishing
 
+**Published at https://www.youtube.com/watch?v=A4jH5CICVOI**
+
 - **Public**, not unlisted — the rules say *"made publicly visible"*.
 - Upload `docs/video/holdline.srt` as the English caption track. The burned-in
   captions stay regardless, so it reads with the sound off either way.
@@ -155,10 +157,13 @@ WHAT THE VERDICTS SHOW
 Three places, one question each, one verdict each. Two come back established, with the sentence that established them. On the third the agent never asked, and the platform returned a confident answer anyway. That one is withheld, with the reason on screen.
 
 WHY NOTHING HERE IS A REAL CALL
-Twenty-eight live calls were placed while building this, and six of them found defects the test suite could not. None of them appears here. No transcript, recording or call identifier from a real call is kept in the repository or shown in this video.
+Twenty-nine live calls were placed while building this, and six of them found defects the test suite could not. None of them appears here. No transcript, recording or call identifier from a real call is kept in the repository or shown in this video.
 
 MEASURED, INCLUDING THE COST
 400 labelled cases. Everything the gate catches, and the 44 real answers it withholds to catch them, print on the same screen every run. A benchmark containing only the cases a system handles is marketing.
+
+Try it without installing anything:
+https://tryholdline.vercel.app
 
 Engine, Evidence Gate, MCP server, 167 tests that place no calls and read no credentials:
 https://github.com/Elioz404/HOLDLINE

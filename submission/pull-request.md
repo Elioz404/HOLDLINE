@@ -189,7 +189,7 @@ never from the clock.
 
 ## Note on live calls
 
-Twenty-eight live calls were placed between 2026-09-07 and 2026-09-11 to
+Twenty-nine live calls were placed between 2026-09-07 and 2026-09-11 to
 published automated customer-service lines. **No transcript, recording, call id or other
 call artifact from them is included in this contribution or kept in the linked
 repository.** What follows is a summary of what they changed, in our own words.
@@ -269,6 +269,15 @@ then the signal added: **0 of 44 eaten**, mention-only still **44/44** caught,
 nothing never-established credited, accuracy **89.0%**, and real answers
 withheld down from 88 to 44. The suite pins both directions, so the second
 number cannot be bought with the first.
+
+The last of them was placed to CALL-E's own inbound testing hotline, published
+the same day for entrants to call. Thirty-two seconds, two fields, both asked
+out loud: one came back `verified` with the turn that established it, the other
+`asked_but_unclear` and withheld, because the line answered that it did not
+have that information. It is the first live call on which every part of this
+worked at once — the recorded lines could not be asked anything, and the
+speech-driven ones ended in a queue — and it confirms the task clause added the
+same day, without which both fields would have returned `never_asked`.
 
 One of the earlier calls was instructed to refuse a transfer to a person,
 accepted one anyway, and waited thirteen minutes on hold until a human

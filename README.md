@@ -46,7 +46,7 @@ description is not an artifact and this is somebody else's phone line.
 Built on [CALL-E](https://docs.heycall-e.com/). **Working today:** the engine,
 the Evidence Gate measured over 400 labelled cases, the freshness ledger and
 route cache, an MCP server, an operations console that needs no API key, and
-167 tests that place no calls and read no credentials. Twenty-eight live calls
+167 tests that place no calls and read no credentials. Twenty-nine live calls
 have been placed through CALL-E. Six of them found defects that neither the suite
 nor the corpus could see, and one of them took away the engine’s central design
 decision.
@@ -67,6 +67,10 @@ you read, so the wait is spent before anyone reaches the button.
 
 A console reachable off its own machine cannot place calls; that is enforced in
 [`src/console/run.ts`](src/console/run.ts), not left to the deployment config.
+
+**Or watch it instead:** [the two-minute demo](https://www.youtube.com/watch?v=A4jH5CICVOI) — the plan, three places on
+the line at once, and a verified answer beside a withheld one. Every segment is
+simulated and says so on screen; no live call appears in it.
 
 [Status](#status) lists what does not exist, and what the live calls changed.
 Nothing below describes unwritten code.
@@ -615,6 +619,7 @@ git log --reverse --oneline
 | A landing page, and the console rebuilt around it | 11 Sep |
 | Four more calls: the compiled task never told the agent to ask. Measured, then fixed | 11 Sep |
 | A question that arrived without its mark, thrown away. Measured, then fixed | 11 Sep |
+| A call to CALL-E's own testing hotline: verified and withheld, both established on a real line | 11 Sep |
 
 Dates rather than commit hashes, because this history has been rewritten twice
 to take phone numbers out of it and every hash moved both times. The subjects
@@ -638,7 +643,7 @@ Every store in this repository is in-memory. `FactLedger`, `RouteCache` and
 interfaces are the durable part; swapping in a real store is a deployment
 concern and has not been done here.
 
-**Twenty-eight live calls have been placed**, between 2026-09-07 and 2026-09-11,
+**Twenty-nine live calls have been placed**, between 2026-09-07 and 2026-09-11,
 to published automated customer-service lines. **No transcript, recording or
 call artifact from them is kept in this repository.** What follows is what they
 changed, in our own words:
@@ -855,19 +860,52 @@ credited, and accuracy **89.0%**. Real answers withheld fell from 88 to 44.
 moves, the result above was bought by undoing an earlier fix, and the suite
 says so.
 
-**A prohibition in a task is not a control.** One of these calls was instructed
-to refuse a transfer to a person. Offered one, it accepted, waited thirteen
-minutes through hold music and advertisements, and a human answered — on a line
-nobody had consented to be recorded on. The lesson was already written down in
-`src/probe/validate-traversal.ts`: a prompt made of prohibitions gets a
-refusal, and positive framing with a concrete action is what survives contact.
-So the instruction was rewritten that way and the call placed again. It failed
-the same: offered a transfer, the agent asked for it to be retried and then
-waited fifteen minutes. Neither a prohibition nor a concrete positive action
-steers it. The
-call task is the only lever over agent behaviour that this API exposes — there
-is no maximum-duration parameter — which makes how it is worded a safety
-control rather than a matter of style.
+**The task is not a control over what the agent does with a transfer.** One of
+these calls was instructed to refuse one. Offered a transfer, it accepted,
+waited thirteen minutes through hold music and advertisements, and a human
+answered — on a line nobody had consented to be recorded on. The instruction
+was rewritten as a concrete positive action rather than a prohibition, which is
+the framing `src/probe/validate-traversal.ts` already records as the one that
+survives contact, and the call was placed again. Same outcome: offered a
+transfer, the agent asked for it to be retried, then waited fifteen minutes.
+
+That is not the agent failing. Asked about it afterwards, CALL-E's support
+confirmed the platform **is designed to wait when a call is transferred to a
+human agent**, and that it therefore cannot be held inside an automated system
+by instruction. That is worth knowing before building on it, and it is not in
+the API reference: the call task is the only lever over agent behaviour the API
+exposes, there is no maximum-duration parameter, and this particular behaviour
+is out of reach of both. A workflow that must not reach a person cannot be
+built here, and finding that out costs whatever the queue costs.
+
+HOLDLINE places no further calls into queues that offer a human, at the
+platform's request.
+
+### The one where all of it worked
+
+CALL-E published an inbound testing hotline on 2026-09-11 — their own line,
+answered by a conversational agent, offered to entrants for exactly this. It is
+the first line this project has called that could hold up its end: a recording
+cannot be asked anything, and a customer-service tree hands you to a queue.
+
+One call, thirty-two seconds, two fields.
+
+The agent asked both out loud. The gate found a supporting turn for each and
+quoted it back, and then split them: the line's purpose came back **verified**,
+because the question was put and a usable answer followed. Whether the call was
+being recorded came back **`asked_but_unclear`** and was withheld, because the
+question was put and the line answered that it did not have that information.
+
+That is the whole product on a real telephone, and it is the first time every
+part of it has worked at once outside the simulator. Every earlier live call
+was missing one piece: the recorded lines could not be asked, and the
+speech-driven ones ended in a queue. It also settles the fix from the same day —
+the clause that tells the agent to ask out loud is what produced the two
+quotable turns, and without it this call would have returned `never_asked`
+twice, like the four before it.
+
+No transcript from it is kept here either. The verdicts above are what the gate
+reported, described rather than reproduced.
 
 The gate's other honest cost is older and still published: a fact established
 by *absence* cannot be credited. If nobody human ever comes on the line, then

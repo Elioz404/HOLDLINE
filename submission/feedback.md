@@ -270,12 +270,18 @@ around a tree they cannot traverse.
 
 ---
 
-## 10. A task instruction is not a control, and there is no duration limit
+## 10. Waiting through a human transfer is by design, is not documented, and cannot be opted out of
 
 A task instructed the agent to refuse a transfer to a person. Offered one, it
 accepted and waited on hold. The instruction was rewritten as a concrete
 positive action rather than a prohibition — the framing your own prompt guidance
 favours — and the call was placed again. It accepted again.
+
+Support later clarified that this is intended: CALL-E is designed to wait when
+a call is transferred to a human agent. That answers *why*, and it turns this
+from a bug report into a documentation request. Nothing in the quickstart, the
+calls guide or the API reference says it, so the first place a developer learns
+it is a bill.
 
 Two calls ran **920.216 s** and **920.139 s**: within a tenth of a second of one
 another, so a platform limit rather than a coincidence. Both spent the bulk of
@@ -291,12 +297,17 @@ because none exists.
 
 Three calls to that one line, every one of them ending in the queue, ran 38
 minutes and cost **1,551 credits** — 305, 623 and 623, or about 40.8 credits a
-minute across all three. A caller who assumes per-call billing and points this
+minute across all three. At the rate support quoted when reconciling them, one
+credit is a cent, so that is **$15.51 for thirty-eight minutes of hold music**,
+about 41 cents a minute. A caller who assumes per-call billing and points this
 at a queue finds out by arithmetic.
 
-**Suggested fix:** a `max_duration_seconds` on call creation, and a documented
-behaviour for hold detection — even just ceasing to speak into recorded audio
-would cut the cost of this substantially.
+**Suggested fix:** say it in the docs first — one line in the calls guide that
+the agent waits through a transfer to a human, beside the note about billing by
+duration. Then a `max_duration_seconds` on call creation, so a caller who
+cannot use that behaviour can bound it rather than avoid the platform. Hold
+detection would help too: an agent that stopped answering recorded
+announcements would cut most of this cost on its own.
 
 ---
 
@@ -308,8 +319,8 @@ would cut the cost of this substantially.
 - **The docs site links an `openapi.yaml` that 404s** (the object is missing
   from the bucket), so the machine-readable contract is not actually available.
 - **Billing is by duration and the console does not say so anywhere obvious.**
-  Roughly 40 credits a minute: a fifteen-minute call cost 623, a thirty-second
-  one is negligible.
+  Roughly 40 credits a minute, and a credit is a cent: a fifteen-minute call
+  cost 623 credits, or $6.23. A thirty-second one is negligible.
   The hackathon framing — "20 complimentary calls" — reads as per-call, so a
   participant budgets in calls and is billed in minutes. One line beside the
   balance would prevent it.
